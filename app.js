@@ -20,6 +20,7 @@ const STATUSES = [
   { id: "pendente", label: "Pendentes" },
   { id: "andamento", label: "Em Andamento" },
   { id: "gerar-exe", label: "Gerar EXE" },
+  { id: "conferir", label: "Conferir" },
   { id: "aguardando", label: "Aguardando" },
   { id: "resolvido", label: "Resolvido" },
 ];
@@ -669,6 +670,7 @@ function parseText(text) {
     "em andamento": "andamento",
     andamento: "andamento",
     "gerar exe": "gerar-exe",
+    conferir: "conferir",
     aguardando: "aguardando",
     resolvido: "resolvido",
     resolvidos: "resolvido",

@@ -189,7 +189,7 @@ textarea {
 
 .board {
   display: grid;
-  grid-template-columns: repeat(5, minmax(220px, 1fr));
+  grid-template-columns: repeat(6, minmax(180px, 1fr));
   gap: 14px;
   align-items: start;
 }
@@ -216,6 +216,11 @@ textarea {
 .column[data-status="gerar-exe"] {
   --status-color: #7c3aed;
   --status-bg: rgba(124, 58, 237, 0.12);
+}
+
+.column[data-status="conferir"] {
+  --status-color: #0f766e;
+  --status-bg: rgba(15, 118, 110, 0.12);
 }
 
 .column[data-status="aguardando"] {
@@ -479,6 +484,12 @@ dialog::backdrop {
 #importHelp {
   color: var(--muted);
   font-size: 12px;
+}
+
+@media (max-width: 1280px) {
+  .board {
+    grid-template-columns: repeat(3, minmax(240px, 1fr));
+  }
 }
 
 @media (max-width: 1060px) {
