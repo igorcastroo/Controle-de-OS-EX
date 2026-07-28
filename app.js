@@ -528,8 +528,11 @@ function exportText() {
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = `controle-os-${new Date().toISOString().slice(0, 10)}.txt`;
+  link.style.display = "none";
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(link.href);
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
 function importTickets(event) {
