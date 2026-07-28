@@ -1,0 +1,6 @@
+# Dados do navegador nao fazem parte do projeto, mas backups exportados podem conter OS reais.
+controle-os-*.txt
+
+# Arquivos locais do sistema
+.DS_Store
+Thumbs.db

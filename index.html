@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Controle de OS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Excellent Sistemas</p>
+        <h1>Controle de OS</h1>
+      </div>
+      <div class="actions">
+        <button class="icon-button" id="themeButton" type="button" title="Alternar tema" aria-label="Alternar tema">◐</button>
+        <button id="headerNewButton" class="primary" type="button">Adicionar OS</button>
+        <button id="archiveViewButton" type="button">Ver arquivadas</button>
+        <button id="exportButton" type="button">Exportar TXT</button>
+        <button id="importButton" type="button">Importar TXT</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="toolbar" aria-label="Ferramentas">
+        <label class="search">
+          <span>Buscar</span>
+          <input id="searchInput" type="search" placeholder="OS, cliente, problema, observacao...">
+        </label>
+        <div class="archive-controls" aria-label="Arquivar OS resolvidas por mes">
+          <input id="archiveMonthInput" type="month" aria-label="Filtrar OS por mes" title="Filtrar OS por mes">
+          <button id="clearMonthFilterButton" type="button" title="Limpar filtro de mes">Limpar</button>
+          <button id="archiveMonthButton" type="button" title="Arquivar somente as OS resolvidas do mes selecionado">Arquivar resolvidas</button>
+        </div>
+      </section>
+      <p class="view-label" id="viewLabel"></p>
+
+      <section class="board" id="board" aria-label="Quadro Kanban"></section>
+    </main>
+
+    <dialog id="ticketDialog">
+      <form method="dialog" class="dialog-form" id="ticketForm">
+        <div class="dialog-head">
+          <h2 id="dialogTitle">Nova OS</h2>
+          <button class="icon-button" data-close="ticketDialog" type="button" aria-label="Fechar">×</button>
+        </div>
+
+        <input id="ticketId" type="hidden">
+        <div class="form-grid">
+          <label>
+            <span>Numero da OS</span>
+            <input id="numberInput" name="number" placeholder="2026.78.1542.2565">
+          </label>
+          <label>
+            <span>Empresa</span>
+            <input id="companyInput" name="company" placeholder="Nome da empresa">
+          </label>
+        </div>
+        <label>
+          <span>Titulo / problema</span>
+          <textarea id="titleInput" name="title" rows="3" required placeholder="Descreva o problema ou melhoria"></textarea>
+        </label>
+        <div class="form-grid">
+          <label>
+            <span>Status</span>
+            <select id="statusInput" name="status"></select>
+          </label>
+          <label>
+            <span>Prioridade</span>
+            <select id="priorityInput" name="priority">
+              <option>Normal</option>
+              <option>Alta</option>
+              <option>Baixa</option>
+            </select>
+          </label>
+        </div>
+        <div class="form-grid">
+          <label>
+            <span>Data de cadastro</span>
+            <input id="createdAtInput" name="createdAt" type="datetime-local">
+          </label>
+          <label>
+            <span>Data do status</span>
+            <input id="statusUpdatedAtInput" name="statusUpdatedAt" type="datetime-local">
+          </label>
+        </div>
+        <label>
+          <span>Responsavel / observacao</span>
+          <textarea id="noteInput" name="note" hidden></textarea>
+        </label>
+        <div class="note-history" id="noteHistory"></div>
+        <div class="note-add">
+          <textarea id="noteEntryInput" rows="3" placeholder="Ex.: pedi pro Ferreira rodar um comando"></textarea>
+          <button id="addNoteButton" type="button">Adicionar observacao</button>
+        </div>
+
+        <div class="dialog-actions">
+          <button id="deleteButton" class="danger" type="button">Excluir</button>
+          <button id="archiveTicketButton" type="button">Arquivar</button>
+          <span></span>
+          <button data-close="ticketDialog" type="button">Cancelar</button>
+          <button id="saveButton" class="primary" type="submit">Salvar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="noteViewDialog">
+      <div class="dialog-form wide note-dialog">
+        <div class="dialog-head">
+          <h2>Observacao</h2>
+          <button class="icon-button" data-close="noteViewDialog" type="button" aria-label="Fechar">&times;</button>
+        </div>
+        <textarea id="noteViewText" class="note-view-text" rows="8"></textarea>
+        <div class="dialog-actions single">
+          <span></span>
+          <button data-close="noteViewDialog" type="button">Cancelar</button>
+          <button id="noteViewSaveButton" class="primary" type="button">Aplicar alteracao</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="importDialog">
+      <form method="dialog" class="dialog-form wide" id="importForm">
+        <div class="dialog-head">
+          <h2>Importar TXT</h2>
+          <button class="icon-button" data-close="importDialog" type="button" aria-label="Fechar">×</button>
+        </div>
+        <label>
+          <span>Cole aqui seu controle atual</span>
+          <textarea id="importText" rows="14" placeholder="* Pendentes&#10;- 2026... - Descricao"></textarea>
+        </label>
+        <div class="dialog-actions">
+          <span id="importHelp">Aceita listas por status e textos de Ver Detalhes Atendimento.</span>
+          <button data-close="importDialog" type="button">Cancelar</button>
+          <button id="runImportButton" class="primary" type="submit">Importar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <template id="columnTemplate">
+      <article class="column">
+        <div class="column-head">
+          <h2></h2>
+          <span class="counter"></span>
+        </div>
+        <div class="dropzone"></div>
+      </article>
+    </template>
+
+    <template id="ticketTemplate">
+      <article class="ticket" draggable="true">
+        <div class="ticket-top">
+          <strong></strong>
+          <span class="priority"></span>
+        </div>
+        <p></p>
+        <div class="ticket-notes"></div>
+        <small class="ticket-company"></small>
+        <small class="ticket-dates"></small>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
