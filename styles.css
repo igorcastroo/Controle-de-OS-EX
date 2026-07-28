@@ -150,6 +150,13 @@ main {
   font-size: 13px;
 }
 
+.sync-status {
+  min-height: 18px;
+  margin: -6px 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 label {
   display: grid;
   gap: 6px;

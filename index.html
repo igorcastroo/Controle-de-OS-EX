@@ -21,6 +21,8 @@
         <button id="archiveViewButton" type="button">Ver arquivadas</button>
         <button id="exportButton" type="button">Exportar TXT</button>
         <button id="importButton" type="button">Importar TXT</button>
+        <button id="migrateButton" type="button" hidden>Migrar OS locais</button>
+        <button id="authButton" class="primary" type="button">Entrar com Google</button>
       </div>
     </header>
 
@@ -37,6 +39,7 @@
         </div>
       </section>
       <p class="view-label" id="viewLabel"></p>
+      <p class="sync-status" id="syncStatus"></p>
 
       <section class="board" id="board" aria-label="Quadro Kanban"></section>
     </main>
@@ -163,6 +166,6 @@
       </article>
     </template>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

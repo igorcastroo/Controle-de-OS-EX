@@ -1,3 +1,21 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import { GoogleAuthProvider, getAuth, onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+import { collection, deleteDoc, doc, getFirestore, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBNq245v9eECJrP5eDBapjQ5cH0MfSZJnk",
+  authDomain: "controle-de-os-ex.firebaseapp.com",
+  projectId: "controle-de-os-ex",
+  storageBucket: "controle-de-os-ex.firebasestorage.app",
+  messagingSenderId: "258027876240",
+  appId: "1:258027876240:web:f2c9d422704e6675fb8d15",
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const firestore = getFirestore(firebaseApp);
+const googleProvider = new GoogleAuthProvider();
+
 const STATUSES = [
   { id: "pendente", label: "Pendentes" },
   { id: "andamento", label: "Em Andamento" },
@@ -12,12 +30,16 @@ const SEED_KEY = "controle-os-seed-v4";
 
 const initialTickets = [];
 
+const localTickets = loadTickets();
 const state = {
-  tickets: loadTickets(),
+  tickets: [],
+  localTickets,
   search: "",
   draggedId: null,
   view: "active",
   monthFilter: "",
+  user: null,
+  unsubscribeTickets: null,
 };
 
 const board = document.querySelector("#board");
@@ -45,6 +67,9 @@ const newButtons = document.querySelectorAll("#headerNewButton");
 const noteViewDialog = document.querySelector("#noteViewDialog");
 const noteViewText = document.querySelector("#noteViewText");
 const noteViewSaveButton = document.querySelector("#noteViewSaveButton");
+const authButton = document.querySelector("#authButton");
+const migrateButton = document.querySelector("#migrateButton");
+const syncStatus = document.querySelector("#syncStatus");
 let editingNoteIndex = null;
 
 document.querySelector("#themeButton").textContent = "\u25D0";
@@ -62,6 +87,8 @@ document.querySelector("#searchInput").addEventListener("input", (event) => {
 document.querySelector("#exportButton").addEventListener("click", exportText);
 document.querySelector("#importButton").addEventListener("click", () => importDialog.showModal());
 document.querySelector("#themeButton").addEventListener("click", toggleTheme);
+authButton.addEventListener("click", toggleAuthentication);
+migrateButton.addEventListener("click", migrateLocalTickets);
 archiveViewButton.addEventListener("click", toggleArchiveView);
 archiveMonthInput.addEventListener("input", (event) => {
   state.monthFilter = event.target.value;
@@ -95,6 +122,7 @@ noteEntryInput.addEventListener("keydown", (event) => {
 setupTheme();
 setupStatusOptions();
 render();
+onAuthStateChanged(auth, handleAuthenticationState);
 
 function ticket(number, title, status, note = "", priority = "Normal", dates = {}) {
   const createdAt = dates.createdAt || new Date().toISOString();
@@ -145,6 +173,83 @@ function loadTickets() {
 
 function saveAll() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tickets));
+  state.tickets.forEach(saveTicketToFirestore);
+}
+
+async function toggleAuthentication() {
+  try {
+    if (state.user) {
+      await signOut(auth);
+      return;
+    }
+    await signInWithPopup(auth, googleProvider);
+  } catch (error) {
+    syncStatus.textContent = `Nao foi possivel entrar: ${error.message}`;
+  }
+}
+
+function handleAuthenticationState(user) {
+  state.unsubscribeTickets?.();
+  state.unsubscribeTickets = null;
+  state.user = user;
+  authButton.textContent = user ? "Sair" : "Entrar com Google";
+
+  if (!user) {
+    state.tickets = [];
+    migrateButton.hidden = true;
+    syncStatus.textContent = "Entre com Google para acessar suas OS na nuvem.";
+    render();
+    return;
+  }
+
+  syncStatus.textContent = `Conectado como ${user.email}`;
+  const ticketsCollection = collection(firestore, "users", user.uid, "tickets");
+  state.unsubscribeTickets = onSnapshot(ticketsCollection, (snapshot) => {
+    state.tickets = snapshot.docs.map((ticketDocument) => normalizeTicketDates({
+      ...ticketDocument.data(),
+      id: ticketDocument.id,
+    }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tickets));
+    migrateButton.hidden = snapshot.size > 0 || state.localTickets.length === 0;
+    render();
+  }, (error) => {
+    syncStatus.textContent = `Erro ao sincronizar: ${error.message}`;
+  });
+}
+
+async function saveTicketToFirestore(ticketItem) {
+  if (!state.user) return false;
+  try {
+    await setDoc(doc(firestore, "users", state.user.uid, "tickets", ticketItem.id), ticketItem);
+    return true;
+  } catch (error) {
+    syncStatus.textContent = `Erro ao salvar: ${error.message}`;
+    return false;
+  }
+}
+
+async function deleteTicketFromFirestore(ticketId) {
+  if (!state.user) return;
+  try {
+    await deleteDoc(doc(firestore, "users", state.user.uid, "tickets", ticketId));
+  } catch (error) {
+    syncStatus.textContent = `Erro ao excluir: ${error.message}`;
+  }
+}
+
+async function migrateLocalTickets() {
+  if (!state.user || !state.localTickets.length) return;
+  migrateButton.disabled = true;
+  syncStatus.textContent = "Migrando OS locais...";
+  try {
+    const results = await Promise.all(state.localTickets.map(saveTicketToFirestore));
+    if (results.some((saved) => !saved)) return;
+    state.localTickets = [];
+    migrateButton.hidden = true;
+    syncStatus.textContent = "OS locais migradas para o Firestore.";
+  } finally {
+    migrateButton.disabled = false;
+  }
 }
 
 function setupStatusOptions() {
@@ -159,9 +264,9 @@ function render() {
   const isArchivedView = state.view === "archived";
 
   archiveViewButton.textContent = isArchivedView ? "Ver ativas" : "Ver arquivadas";
-  archiveMonthButton.disabled = isArchivedView;
+  archiveMonthButton.disabled = isArchivedView || !state.user;
   newButtons.forEach((button) => {
-    button.disabled = isArchivedView;
+    button.disabled = isArchivedView || !state.user;
   });
   viewLabel.textContent = isArchivedView
     ? "Mostrando OS arquivadas. Abra uma OS para restaurar."
@@ -447,6 +552,7 @@ function deleteTicket() {
   const id = document.querySelector("#ticketId").value;
   state.tickets = state.tickets.filter((item) => item.id !== id);
   saveAll();
+  deleteTicketFromFirestore(id);
   ticketDialog.close();
   render();
 }

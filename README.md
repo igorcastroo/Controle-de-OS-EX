@@ -14,6 +14,12 @@ Abra o arquivo `index.html` no navegador.
 
 Os dados ficam salvos no `localStorage` do proprio navegador. Use **Exportar TXT** para gerar uma copia no formato de texto.
 
+## Firebase
+
+O sistema usa Firebase Authentication com Google e Cloud Firestore para sincronizar as OS. Ao entrar pela primeira vez, use **Migrar OS locais** para enviar ao Firestore as OS salvas neste navegador.
+
+O login Google precisa que o sistema seja aberto por um endereco web, como GitHub Pages ou Firebase Hosting. Abrir o `index.html` diretamente pelo Windows nao permite autenticar.
+
 ## Recursos
 
 - Criar, editar e excluir OS
