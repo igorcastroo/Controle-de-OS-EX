@@ -114,6 +114,10 @@ h1 {
   font-size: 20px;
 }
 
+.button-icon {
+  display: none;
+}
+
 main {
   padding: 0 28px 28px;
 }
@@ -504,7 +508,22 @@ dialog::backdrop {
 
   .actions {
     display: grid;
-    grid-template-columns: 38px 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .file-action .button-label {
+    display: none;
+  }
+
+  .file-action .button-icon {
+    display: inline;
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .file-action {
+    min-width: 44px;
+    padding: 0 12px;
   }
 
   .board,
