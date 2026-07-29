@@ -276,7 +276,13 @@ function render() {
   STATUSES.forEach((status) => {
     const column = columnTemplate.content.firstElementChild.cloneNode(true);
     const zone = column.querySelector(".dropzone");
-    const columnTickets = tickets.filter((item) => item.status === status.id);
+    const columnTickets = tickets
+      .filter((item) => item.status === status.id)
+      .sort((first, second) => {
+        const firstDate = new Date(first.statusUpdatedAt || first.createdAt).getTime();
+        const secondDate = new Date(second.statusUpdatedAt || second.createdAt).getTime();
+        return secondDate - firstDate;
+      });
 
     column.dataset.status = status.id;
     column.querySelector("h2").textContent = status.label;
