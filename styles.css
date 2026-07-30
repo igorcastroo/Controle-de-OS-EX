@@ -132,13 +132,20 @@ main {
 
 .archive-controls {
   display: grid;
-  grid-template-columns: 170px auto auto;
+  grid-template-columns: 150px auto 150px auto auto;
   gap: 8px;
   align-items: end;
 }
 
 .archive-controls input {
   min-height: 44px;
+}
+
+.range-separator {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  padding-bottom: 13px;
 }
 
 .archive-controls button,
@@ -506,6 +513,10 @@ dialog::backdrop {
 
   .archive-controls {
     grid-template-columns: 1fr;
+  }
+
+  .range-separator {
+    display: none;
   }
 
   .topbar {

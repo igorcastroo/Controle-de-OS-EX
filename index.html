@@ -36,10 +36,12 @@
           <span>Buscar</span>
           <input id="searchInput" type="search" placeholder="OS, cliente, problema, observacao...">
         </label>
-        <div class="archive-controls" aria-label="Arquivar OS resolvidas por mes">
-          <input id="archiveMonthInput" type="month" aria-label="Filtrar OS por mes" title="Filtrar OS por mes">
-          <button id="clearMonthFilterButton" type="button" title="Limpar filtro de mes">Limpar</button>
-          <button id="archiveMonthButton" type="button" title="Arquivar somente as OS resolvidas do mes selecionado">Arquivar resolvidas</button>
+        <div class="archive-controls" aria-label="Filtrar e arquivar OS por periodo">
+          <input id="dateFromInput" type="date" aria-label="Data inicial" title="Data inicial">
+          <span class="range-separator" aria-hidden="true">a</span>
+          <input id="dateToInput" type="date" aria-label="Data final" title="Data final">
+          <button id="clearDateFilterButton" type="button" title="Limpar filtro de datas">Limpar</button>
+          <button id="archiveRangeButton" type="button" title="Arquivar somente as OS resolvidas no periodo selecionado">Arquivar resolvidas</button>
         </div>
       </section>
       <p class="view-label" id="viewLabel"></p>

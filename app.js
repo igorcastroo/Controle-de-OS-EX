@@ -38,7 +38,8 @@ const state = {
   search: "",
   draggedId: null,
   view: "active",
-  monthFilter: "",
+  dateFrom: "",
+  dateTo: "",
   user: null,
   unsubscribeTickets: null,
 };
@@ -56,9 +57,10 @@ const importDialog = document.querySelector("#importDialog");
 const importForm = document.querySelector("#importForm");
 const importText = document.querySelector("#importText");
 const archiveViewButton = document.querySelector("#archiveViewButton");
-const archiveMonthInput = document.querySelector("#archiveMonthInput");
-const clearMonthFilterButton = document.querySelector("#clearMonthFilterButton");
-const archiveMonthButton = document.querySelector("#archiveMonthButton");
+const dateFromInput = document.querySelector("#dateFromInput");
+const dateToInput = document.querySelector("#dateToInput");
+const clearDateFilterButton = document.querySelector("#clearDateFilterButton");
+const archiveRangeButton = document.querySelector("#archiveRangeButton");
 const viewLabel = document.querySelector("#viewLabel");
 const noteInput = document.querySelector("#noteInput");
 const noteEntryInput = document.querySelector("#noteEntryInput");
@@ -91,16 +93,22 @@ document.querySelector("#themeButton").addEventListener("click", toggleTheme);
 authButton.addEventListener("click", toggleAuthentication);
 migrateButton.addEventListener("click", migrateLocalTickets);
 archiveViewButton.addEventListener("click", toggleArchiveView);
-archiveMonthInput.addEventListener("input", (event) => {
-  state.monthFilter = event.target.value;
+dateFromInput.addEventListener("input", (event) => {
+  state.dateFrom = event.target.value;
   render();
 });
-clearMonthFilterButton.addEventListener("click", () => {
-  archiveMonthInput.value = "";
-  state.monthFilter = "";
+dateToInput.addEventListener("input", (event) => {
+  state.dateTo = event.target.value;
   render();
 });
-archiveMonthButton.addEventListener("click", archiveSelectedMonth);
+clearDateFilterButton.addEventListener("click", () => {
+  dateFromInput.value = "";
+  dateToInput.value = "";
+  state.dateFrom = "";
+  state.dateTo = "";
+  render();
+});
+archiveRangeButton.addEventListener("click", archiveSelectedRange);
 document.querySelectorAll("[data-close]").forEach((button) => {
   button.addEventListener("click", () => document.querySelector(`#${button.dataset.close}`).close());
 });
@@ -265,7 +273,7 @@ function render() {
   const isArchivedView = state.view === "archived";
 
   archiveViewButton.textContent = isArchivedView ? "Ver ativas" : "Ver arquivadas";
-  archiveMonthButton.disabled = isArchivedView || !state.user;
+  archiveRangeButton.disabled = isArchivedView || !state.user;
   newButtons.forEach((button) => {
     button.disabled = isArchivedView || !state.user;
   });
@@ -299,7 +307,7 @@ function filteredTickets() {
   const visibleTickets = state.tickets.filter((item) => {
     const archived = Boolean(item.archivedAt);
     const visibleByArchive = state.view === "archived" ? archived : !archived;
-    return visibleByArchive && matchesMonthFilter(item);
+    return visibleByArchive && matchesDateRange(item);
   });
 
   if (!state.search) return visibleTickets;
@@ -579,6 +587,31 @@ function toggleTicketArchive() {
 function toggleArchiveView() {
   state.view = state.view === "archived" ? "active" : "archived";
   render();
+}
+
+function archiveSelectedRange() {
+  const range = getSelectedDateRange();
+  if (!range.start || !range.end) {
+    alert("Informe a data inicial e final para arquivar.");
+    return;
+  }
+
+  const now = new Date().toISOString();
+  let archivedCount = 0;
+
+  state.tickets.forEach((item) => {
+    if (item.archivedAt || item.status !== "resolvido") return;
+    const statusDate = new Date(item.statusUpdatedAt);
+    if (Number.isNaN(statusDate.getTime()) || statusDate < range.start || statusDate > range.end) return;
+
+    item.archivedAt = now;
+    item.updatedAt = now;
+    archivedCount += 1;
+  });
+
+  if (archivedCount > 0) saveAll();
+  render();
+  alert(`${archivedCount} OS resolvida(s) arquivada(s) no periodo selecionado.`);
 }
 
 function archiveSelectedMonthLegacy() {
@@ -963,14 +996,23 @@ function toMonthInputValue(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function matchesMonthFilter(item) {
-  if (!state.monthFilter) return true;
+function matchesDateRange(item) {
+  if (!state.dateFrom && !state.dateTo) return true;
+  const range = getSelectedDateRange();
+
   return [item.createdAt, item.statusUpdatedAt, item.archivedAt].some((value) => {
     if (!value) return false;
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return false;
-    return toMonthInputValue(date) === state.monthFilter;
+    return (!range.start || date >= range.start) && (!range.end || date <= range.end);
   });
+}
+
+function getSelectedDateRange() {
+  return {
+    start: state.dateFrom ? new Date(`${state.dateFrom}T00:00:00`) : null,
+    end: state.dateTo ? new Date(`${state.dateTo}T23:59:59.999`) : null,
+  };
 }
 
 function getMonthRange(value) {
