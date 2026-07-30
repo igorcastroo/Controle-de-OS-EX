@@ -132,7 +132,7 @@ main {
 
 .archive-controls {
   display: grid;
-  grid-template-columns: 150px auto 150px auto auto;
+  grid-template-columns: 150px auto 150px auto auto auto;
   gap: 8px;
   align-items: end;
 }

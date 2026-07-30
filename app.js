@@ -59,6 +59,7 @@ const importText = document.querySelector("#importText");
 const archiveViewButton = document.querySelector("#archiveViewButton");
 const dateFromInput = document.querySelector("#dateFromInput");
 const dateToInput = document.querySelector("#dateToInput");
+const todayFilterButton = document.querySelector("#todayFilterButton");
 const clearDateFilterButton = document.querySelector("#clearDateFilterButton");
 const archiveRangeButton = document.querySelector("#archiveRangeButton");
 const viewLabel = document.querySelector("#viewLabel");
@@ -99,6 +100,14 @@ dateFromInput.addEventListener("input", (event) => {
 });
 dateToInput.addEventListener("input", (event) => {
   state.dateTo = event.target.value;
+  render();
+});
+todayFilterButton.addEventListener("click", () => {
+  const today = toDateInputValue(new Date());
+  dateFromInput.value = today;
+  dateToInput.value = today;
+  state.dateFrom = today;
+  state.dateTo = today;
   render();
 });
 clearDateFilterButton.addEventListener("click", () => {
