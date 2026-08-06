@@ -361,9 +361,6 @@ function renderTicket(item) {
 
   card.dataset.id = item.id;
   card.querySelector("strong").textContent = item.number || "Sem numero";
-  const companyCode = card.querySelector(".ticket-company-code");
-  companyCode.textContent = item.companyCode || "";
-  companyCode.hidden = !item.companyCode;
   card.querySelector("p").textContent = item.title || "Sem descricao";
   const company = card.querySelector(".ticket-company");
   company.textContent = item.company || "";

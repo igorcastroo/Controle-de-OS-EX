@@ -300,23 +300,6 @@ textarea {
   gap: 8px;
 }
 
-.ticket-identification {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-}
-
-.ticket-company-code {
-  flex: 0 0 auto;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--panel-soft);
-  color: var(--muted);
-  font-weight: 700;
-  padding: 2px 5px;
-}
-
 .ticket strong {
   overflow-wrap: anywhere;
   font-size: 13px;
