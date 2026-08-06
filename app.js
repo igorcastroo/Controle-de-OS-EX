@@ -19,8 +19,8 @@ const googleProvider = new GoogleAuthProvider();
 const STATUSES = [
   { id: "pendente", label: "Pendentes" },
   { id: "andamento", label: "Em Andamento" },
-  { id: "gerar-exe", label: "Gerar EXE" },
   { id: "conferir", label: "Conferir" },
+  { id: "gerar-exe", label: "Gerar EXE" },
   { id: "aguardando", label: "Aguardando" },
   { id: "resolvido", label: "Resolvido" },
 ];
@@ -28,6 +28,9 @@ const STATUSES = [
 const STORAGE_KEY = "controle-os-kanban-v1";
 const THEME_KEY = "controle-os-theme";
 const SEED_KEY = "controle-os-seed-v4";
+const COMPANY_CODES = new Map([
+  ["PONTO CELL CLJ ACESSORIOS ELETRONICOS E ASSISTENCIA LTDA", "95646"],
+]);
 
 const initialTickets = [];
 
@@ -151,6 +154,7 @@ function ticket(number, title, status, note = "", priority = "Normal", dates = {
     number,
     title,
     company: dates.company || "",
+    companyCode: dates.companyCode || "",
     status,
     note,
     priority,
@@ -223,13 +227,20 @@ function handleAuthenticationState(user) {
   syncStatus.textContent = `Conectado como ${user.email}`;
   const ticketsCollection = collection(firestore, "users", user.uid, "tickets");
   state.unsubscribeTickets = onSnapshot(ticketsCollection, (snapshot) => {
-    state.tickets = snapshot.docs.map((ticketDocument) => normalizeTicketDates({
-      ...ticketDocument.data(),
-      id: ticketDocument.id,
-    }));
+    const migrations = [];
+    state.tickets = snapshot.docs.map((ticketDocument) => {
+      const rawTicket = {
+        ...ticketDocument.data(),
+        id: ticketDocument.id,
+      };
+      const normalizedTicket = normalizeTicketDates(rawTicket);
+      if (needsCompanyCodeMigration(rawTicket, normalizedTicket)) migrations.push(normalizedTicket);
+      return normalizedTicket;
+    });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tickets));
     migrateButton.hidden = snapshot.size > 0 || state.localTickets.length === 0;
     render();
+    migrations.forEach(saveTicketToFirestore);
   }, (error) => {
     syncStatus.textContent = `Erro ao sincronizar: ${error.message}`;
   });
@@ -323,6 +334,7 @@ function filteredTickets() {
   return visibleTickets.filter((item) => {
     const text = [
       item.number,
+      item.companyCode,
       item.company,
       item.title,
       item.note,
@@ -349,6 +361,9 @@ function renderTicket(item) {
 
   card.dataset.id = item.id;
   card.querySelector("strong").textContent = item.number || "Sem numero";
+  const companyCode = card.querySelector(".ticket-company-code");
+  companyCode.textContent = item.companyCode || "";
+  companyCode.hidden = !item.companyCode;
   card.querySelector("p").textContent = item.title || "Sem descricao";
   const company = card.querySelector(".ticket-company");
   company.textContent = item.company || "";
@@ -400,6 +415,7 @@ function openTicketDialog(item = null) {
   archiveTicketButton.textContent = item?.archivedAt ? "Restaurar" : "Arquivar";
   document.querySelector("#ticketId").value = item?.id || "";
   document.querySelector("#numberInput").value = item?.number || "";
+  document.querySelector("#companyCodeInput").value = item?.companyCode || "";
   document.querySelector("#companyInput").value = item?.company || "";
   document.querySelector("#titleInput").value = item?.title || "";
   document.querySelector("#statusInput").value = item?.status || "pendente";
@@ -419,9 +435,14 @@ function saveTicket(event) {
   const selectedStatus = document.querySelector("#statusInput").value;
   const statusDateInput = document.querySelector("#statusUpdatedAtInput").value;
   const statusChanged = previous && previous.status !== selectedStatus;
+  const companyDetails = normalizeCompanyDetails(
+    document.querySelector("#companyCodeInput").value,
+    document.querySelector("#companyInput").value,
+  );
   const data = {
     number: document.querySelector("#numberInput").value.trim(),
-    company: document.querySelector("#companyInput").value.trim(),
+    companyCode: companyDetails.code,
+    company: companyDetails.name,
     title: document.querySelector("#titleInput").value.trim(),
     status: selectedStatus,
     priority: document.querySelector("#priorityInput").value,
@@ -879,12 +900,38 @@ function parseAttendanceDetailsLegacy(text) {
 
 function normalizeTicketDates(item) {
   const createdAt = item.createdAt || item.updatedAt || new Date().toISOString();
+  const companyDetails = normalizeCompanyDetails(
+    item.companyCode,
+    item.company,
+    !Object.hasOwn(item, "companyCode"),
+  );
   return {
     ...item,
+    companyCode: companyDetails.code,
+    company: companyDetails.name,
     createdAt,
     statusUpdatedAt: item.statusUpdatedAt || item.updatedAt || createdAt,
     archivedAt: item.archivedAt || "",
   };
+}
+
+function normalizeCompanyDetails(companyCode, company, useKnownCode = false) {
+  const code = String(companyCode || "").trim();
+  const name = String(company || "").trim();
+  const legacyMatch = name.match(/^(\d+)\s*-\s*(.+)$/);
+  const codeOnly = name.match(/^\d+$/);
+  const cleanName = legacyMatch || codeOnly ? (legacyMatch?.[2] || "").trim() : name;
+  const knownCode = useKnownCode ? COMPANY_CODES.get(cleanName.toUpperCase()) : "";
+
+  return {
+    code: code || (legacyMatch ? legacyMatch[1] : codeOnly?.[0] || knownCode || ""),
+    name: cleanName,
+  };
+}
+
+function needsCompanyCodeMigration(original, normalized) {
+  return (original.companyCode || "") !== normalized.companyCode
+    || (original.company || "") !== normalized.company;
 }
 
 function applySeedDateCorrections(tickets) {

@@ -65,9 +65,16 @@
             <input id="numberInput" name="number" placeholder="2026.01.0001.0001">
           </label>
           <label>
+            <span>Codigo da empresa</span>
+            <input id="companyCodeInput" name="companyCode" inputmode="numeric" placeholder="Ex.: 95646">
+          </label>
+        </div>
+        <div class="form-grid">
+          <label>
             <span>Empresa</span>
             <input id="companyInput" name="company" placeholder="Nome da empresa">
           </label>
+          <span aria-hidden="true"></span>
         </div>
         <label>
           <span>Titulo / problema</span>
@@ -163,7 +170,10 @@
     <template id="ticketTemplate">
       <article class="ticket" draggable="true">
         <div class="ticket-top">
-          <strong></strong>
+          <div class="ticket-identification">
+            <strong></strong>
+            <small class="ticket-company-code"></small>
+          </div>
           <span class="priority"></span>
         </div>
         <p></p>
