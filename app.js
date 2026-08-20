@@ -727,6 +727,9 @@ function parseText(text) {
   const attendanceTicket = parseAttendanceDetails(text);
   if (attendanceTicket) return [attendanceTicket];
 
+  const receiptPrintingTicket = parseReceiptPrintingRequest(text);
+  if (receiptPrintingTicket) return [receiptPrintingTicket];
+
   let currentStatus = "pendente";
   let currentDate = "";
   const imported = [];
@@ -837,6 +840,33 @@ function parseAttendanceDetails(text) {
     statusUpdatedAt: createdAt,
     company: companyMatch ? companyMatch[1].trim() : "",
   });
+}
+
+function parseReceiptPrintingRequest(text) {
+  const plainText = decodeCopiedHtmlEntities(text)
+    .replace(/\*\*/g, "")
+    .replace(/\r/g, "")
+    .trim();
+  const match = plainText.match(/(\d{4}(?:\.\d+){3,})\s*-\s*([\s\S]*?)\s+(\d+)\s+c[o\u00f3]digo\s+da\s+empresa\b/i);
+  if (!match) return null;
+
+  const number = match[1];
+  const title = match[2].replace(/\s+/g, " ").trim();
+  const companyCode = match[3];
+  const createdAt = inferDateFromNumber(number);
+
+  return ticket(number, title || "Solicitacao de impressao de recibo", "pendente", "", "Normal", {
+    createdAt,
+    statusUpdatedAt: createdAt,
+    companyCode,
+  });
+}
+
+function decodeCopiedHtmlEntities(value) {
+  return String(value || "")
+    .replace(/&#x([\da-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)))
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number.parseInt(code, 10)))
+    .replace(/&nbsp;/gi, " ");
 }
 
 function parseAttendanceDetailsLegacy(text) {
