@@ -711,7 +711,10 @@ function exportText() {
 function importTickets(event) {
   event.preventDefault();
   const imported = parseText(importText.value);
-  if (!imported.length) return;
+  if (!imported.length) {
+    alert("Nenhuma OS foi identificada no texto importado.");
+    return;
+  }
 
   state.tickets = [...imported, ...state.tickets];
   saveAll();
@@ -847,12 +850,13 @@ function parseReceiptPrintingRequest(text) {
     .replace(/\*\*/g, "")
     .replace(/\r/g, "")
     .trim();
-  const match = plainText.match(/(\d{4}(?:\.\d+){3,})\s*-\s*([\s\S]*?)\s+(\d+)\s+c[o\u00f3]digo\s+da\s+empresa\b/i);
-  if (!match) return null;
+  const parenthesizedMatch = plainText.match(/(\d{4}(?:\.\d+){3,})\s*\(\s*(\d+)\s*\)\s*-\s*([\s\S]+)$/);
+  const labeledMatch = plainText.match(/(\d{4}(?:\.\d+){3,})\s*-\s*([\s\S]*?)\s+(\d+)\s+c[o\u00f3]digo\s+da\s+empresa\b/i);
+  if (!parenthesizedMatch && !labeledMatch) return null;
 
-  const number = match[1];
-  const title = match[2].replace(/\s+/g, " ").trim();
-  const companyCode = match[3];
+  const number = parenthesizedMatch ? parenthesizedMatch[1] : labeledMatch[1];
+  const title = (parenthesizedMatch ? parenthesizedMatch[3] : labeledMatch[2]).replace(/\s+/g, " ").trim();
+  const companyCode = parenthesizedMatch ? parenthesizedMatch[2] : labeledMatch[3];
   const createdAt = inferDateFromNumber(number);
 
   return ticket(number, title || "Solicitacao de impressao de recibo", "pendente", "", "Normal", {
