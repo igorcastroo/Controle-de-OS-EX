@@ -28,3 +28,10 @@ O login Google precisa que o sistema seja aberto por um endereco web, como GitHu
 - Importar o TXT usado atualmente
 - Exportar e restaurar um backup completo em TXT
 - Tema claro/escuro
+
+## Estrutura do codigo
+
+- `app.js`: interface, eventos e fluxos da aplicacao.
+- `js/tickets.js`: criacao e normalizacao das OS.
+- `js/storage.js`: persistencia local no navegador.
+- `firebase.js`: autenticacao e sincronizacao com o Firestore.
