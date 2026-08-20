@@ -98,7 +98,8 @@ p {
 }
 
 h1 {
-  font-size: 28px;
+  font-size: 34px;
+  line-height: 1.1;
 }
 
 .title-row {
@@ -108,15 +109,18 @@ h1 {
 }
 
 .whatsapp-button {
-  display: grid;
-  width: 34px;
-  min-height: 34px;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
   border: 0;
-  border-radius: 50%;
+  border-radius: 999px;
   background: #25d366;
   color: #ffffff;
-  padding: 6px;
+  padding: 7px 12px 7px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .whatsapp-button:hover {
