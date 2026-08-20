@@ -1,20 +1,18 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-import { GoogleAuthProvider, getAuth, onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-import { collection, deleteDoc, doc, getFirestore, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBNq245v9eECJrP5eDBapjQ5cH0MfSZJnk",
-  authDomain: "controle-de-os-ex.firebaseapp.com",
-  projectId: "controle-de-os-ex",
-  storageBucket: "controle-de-os-ex.firebasestorage.app",
-  messagingSenderId: "258027876240",
-  appId: "1:258027876240:web:f2c9d422704e6675fb8d15",
-};
-
-const firebaseApp = initializeApp(firebaseConfig);
-const auth = getAuth(firebaseApp);
-const firestore = getFirestore(firebaseApp);
-const googleProvider = new GoogleAuthProvider();
+import {
+  entrarComGoogle,
+  excluirOS,
+  observarAutenticacao,
+  observarOS,
+  sairDaConta,
+  salvarOS,
+} from "./firebase.js";
+import {
+  createTicket,
+  needsCompanyCodeMigration,
+  normalizeCompanyDetails,
+  normalizeTicketDates,
+} from "./js/tickets.js";
+import { loadTickets, saveTickets } from "./js/storage.js";
 
 const STATUSES = [
   { id: "pendente", label: "Pendentes" },
@@ -31,7 +29,7 @@ const COMPANY_CODES = new Map([
   ["PONTO CELL CLJ ACESSORIOS ELETRONICOS E ASSISTENCIA LTDA", "95646"],
 ]);
 
-const localTickets = loadTickets();
+const localTickets = loadTickets(STORAGE_KEY, (item) => normalizeTicketDates(item, COMPANY_CODES));
 const state = {
   tickets: [],
   localTickets,
@@ -74,7 +72,14 @@ const noteViewSaveButton = document.querySelector("#noteViewSaveButton");
 const authButton = document.querySelector("#authButton");
 const migrateButton = document.querySelector("#migrateButton");
 const syncStatus = document.querySelector("#syncStatus");
+const whatsappButton = document.querySelector("#whatsappButton");
+const whatsappDialog = document.querySelector("#whatsappDialog");
+const whatsappForm = document.querySelector("#whatsappForm");
+const whatsappDateInput = document.querySelector("#whatsappDateInput");
+const whatsappStatusOptions = document.querySelector("#whatsappStatusOptions");
+const whatsappSelectionInfo = document.querySelector("#whatsappSelectionInfo");
 let editingNoteIndex = null;
+let whatsappPeriod = "today";
 
 document.querySelector("#themeButton").textContent = "\u25D0";
 document.querySelectorAll(".icon-button[data-close]").forEach((button) => {
@@ -91,6 +96,15 @@ document.querySelector("#searchInput").addEventListener("input", (event) => {
 document.querySelector("#exportButton").addEventListener("click", exportText);
 document.querySelector("#importButton").addEventListener("click", () => importDialog.showModal());
 document.querySelector("#themeButton").addEventListener("click", toggleTheme);
+whatsappButton.addEventListener("click", openWhatsappDialog);
+whatsappForm.addEventListener("submit", sendWhatsappSummary);
+whatsappDateInput.addEventListener("input", updateWhatsappSelection);
+document.querySelectorAll("[data-whatsapp-period]").forEach((button) => {
+  button.addEventListener("click", () => {
+    whatsappPeriod = button.dataset.whatsappPeriod;
+    updateWhatsappSelection();
+  });
+});
 authButton.addEventListener("click", toggleAuthentication);
 migrateButton.addEventListener("click", migrateLocalTickets);
 archiveViewButton.addEventListener("click", toggleArchiveView);
@@ -139,54 +153,22 @@ noteEntryInput.addEventListener("keydown", (event) => {
 
 setupTheme();
 setupStatusOptions();
+setupWhatsappStatusOptions();
 render();
-onAuthStateChanged(auth, handleAuthenticationState);
-
-function ticket(number, title, status, note = "", priority = "Normal", dates = {}) {
-  const createdAt = dates.createdAt || new Date().toISOString();
-  const statusUpdatedAt = dates.statusUpdatedAt || createdAt;
-
-  return {
-    id: crypto.randomUUID(),
-    number,
-    title,
-    company: dates.company || "",
-    companyCode: dates.companyCode || "",
-    status,
-    note,
-    priority,
-    createdAt,
-    statusUpdatedAt,
-    archivedAt: dates.archivedAt || "",
-    updatedAt: dates.updatedAt || new Date().toISOString(),
-  };
-}
-
-function loadTickets() {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) return [];
-
-  try {
-    const parsed = JSON.parse(saved);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(normalizeTicketDates);
-  } catch {
-    return [];
-  }
-}
+observarAutenticacao(handleAuthenticationState);
 
 function saveAll() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tickets));
+  saveTickets(STORAGE_KEY, state.tickets);
   state.tickets.forEach(saveTicketToFirestore);
 }
 
 async function toggleAuthentication() {
   try {
     if (state.user) {
-      await signOut(auth);
+      await sairDaConta();
       return;
     }
-    await signInWithPopup(auth, googleProvider);
+    await entrarComGoogle();
   } catch (error) {
     syncStatus.textContent = `Nao foi possivel entrar: ${error.message}`;
   }
@@ -207,19 +189,18 @@ function handleAuthenticationState(user) {
   }
 
   syncStatus.textContent = `Conectado como ${user.email}`;
-  const ticketsCollection = collection(firestore, "users", user.uid, "tickets");
-  state.unsubscribeTickets = onSnapshot(ticketsCollection, (snapshot) => {
+  state.unsubscribeTickets = observarOS(user.uid, (snapshot) => {
     const migrations = [];
     state.tickets = snapshot.docs.map((ticketDocument) => {
       const rawTicket = {
         ...ticketDocument.data(),
         id: ticketDocument.id,
       };
-      const normalizedTicket = normalizeTicketDates(rawTicket);
+      const normalizedTicket = normalizeTicketDates(rawTicket, COMPANY_CODES);
       if (needsCompanyCodeMigration(rawTicket, normalizedTicket)) migrations.push(normalizedTicket);
       return normalizedTicket;
     });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tickets));
+    saveTickets(STORAGE_KEY, state.tickets);
     migrateButton.hidden = snapshot.size > 0 || state.localTickets.length === 0;
     render();
     migrations.forEach(saveTicketToFirestore);
@@ -231,7 +212,7 @@ function handleAuthenticationState(user) {
 async function saveTicketToFirestore(ticketItem) {
   if (!state.user) return false;
   try {
-    await setDoc(doc(firestore, "users", state.user.uid, "tickets", ticketItem.id), ticketItem);
+    await salvarOS(state.user.uid, ticketItem);
     return true;
   } catch (error) {
     syncStatus.textContent = `Erro ao salvar: ${error.message}`;
@@ -242,7 +223,7 @@ async function saveTicketToFirestore(ticketItem) {
 async function deleteTicketFromFirestore(ticketId) {
   if (!state.user) return;
   try {
-    await deleteDoc(doc(firestore, "users", state.user.uid, "tickets", ticketId));
+    await excluirOS(state.user.uid, ticketId);
   } catch (error) {
     syncStatus.textContent = `Erro ao excluir: ${error.message}`;
   }
@@ -267,6 +248,80 @@ function setupStatusOptions() {
   statusInput.innerHTML = STATUSES.map((status) => (
     `<option value="${status.id}">${status.label}</option>`
   )).join("");
+}
+
+function setupWhatsappStatusOptions() {
+  whatsappStatusOptions.innerHTML = STATUSES.map((status) => (
+    `<label><input type="checkbox" name="whatsappStatus" value="${status.id}" checked> ${status.label}</label>`
+  )).join("");
+  whatsappStatusOptions.addEventListener("change", updateWhatsappSelection);
+}
+
+function openWhatsappDialog() {
+  whatsappDateInput.value = toDateInputValue(new Date());
+  whatsappPeriod = "today";
+  updateWhatsappSelection();
+  whatsappDialog.showModal();
+}
+
+function updateWhatsappSelection() {
+  document.querySelectorAll("[data-whatsapp-period]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.whatsappPeriod === whatsappPeriod);
+  });
+  const count = getWhatsappTickets().length;
+  whatsappSelectionInfo.textContent = `${count} OS sera(ão) enviada(s).`;
+}
+
+function getWhatsappTickets() {
+  const selectedStatuses = [...whatsappStatusOptions.querySelectorAll("input:checked")]
+    .map((input) => input.value);
+  const range = getWhatsappPeriodRange();
+  if (!selectedStatuses.length || !range) return [];
+
+  return state.tickets
+    .filter((item) => !item.archivedAt && selectedStatuses.includes(item.status))
+    .filter((item) => {
+      const updatedAt = new Date(item.statusUpdatedAt || item.createdAt);
+      return !Number.isNaN(updatedAt.getTime()) && updatedAt >= range.start && updatedAt <= range.end;
+    })
+    .sort((first, second) => new Date(second.statusUpdatedAt || second.createdAt) - new Date(first.statusUpdatedAt || first.createdAt));
+}
+
+function getWhatsappPeriodRange() {
+  if (!whatsappDateInput.value) return null;
+  const [year, month, day] = whatsappDateInput.value.split("-").map(Number);
+  const start = new Date(year, month - 1, day, whatsappPeriod === "afternoon" ? 12 : 0, 0, 0, 0);
+  const end = new Date(year, month - 1, day, whatsappPeriod === "morning" ? 11 : 23, whatsappPeriod === "morning" ? 59 : 59, 59, 999);
+  return { start, end };
+}
+
+function sendWhatsappSummary(event) {
+  event.preventDefault();
+  const tickets = getWhatsappTickets();
+  if (!tickets.length) {
+    alert("Nenhuma OS encontrada para os status e período selecionados.");
+    return;
+  }
+
+  const selectedDate = whatsappDateInput.value;
+  const periodLabel = { today: "Hoje", morning: "Manhã (até 12h)", afternoon: "Tarde/Noite" }[whatsappPeriod];
+  const groups = STATUSES.map((status) => ({
+    ...status,
+    tickets: tickets.filter((item) => item.status === status.id),
+  })).filter((group) => group.tickets.length);
+  const message = [
+    `*Controle de OS — ${formatDate(`${selectedDate}T12:00:00`)}*`,
+    `*Período:* ${periodLabel}`,
+    "",
+    ...groups.flatMap((group) => [
+      `*${group.label} (${group.tickets.length})*`,
+      ...group.tickets.map((item) => `• ${item.number || "Sem número"} — ${item.company ? `${item.company}: ` : ""}${item.title}`),
+      "",
+    ]),
+  ].join("\n").trim();
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener");
+  whatsappDialog.close();
 }
 
 function render() {
@@ -417,6 +472,8 @@ function saveTicket(event) {
   const companyDetails = normalizeCompanyDetails(
     document.querySelector("#companyCodeInput").value,
     document.querySelector("#companyInput").value,
+    false,
+    COMPANY_CODES,
   );
   const data = {
     number: document.querySelector("#numberInput").value.trim(),
@@ -702,7 +759,7 @@ function parseText(text) {
 
     const createdAt = parseBrazilianDate(currentDate) || inferDateFromNumber(number);
 
-    imported.push(ticket(number, title, currentStatus, note, "Normal", {
+    imported.push(createTicket(number, title, currentStatus, note, "Normal", {
       createdAt,
       statusUpdatedAt: createdAt,
     }));
@@ -722,7 +779,7 @@ function parseBackupText(text) {
       ...item,
       id: item.id || crypto.randomUUID(),
       company: item.company || "",
-    }));
+    }, COMPANY_CODES));
   } catch {
     return [];
   }
@@ -767,7 +824,7 @@ function parseAttendanceDetails(text) {
     notes.push(`[${formatDateTime(parseBrazilianDateTime(historyDateMatch[1]))}] Cadastro\n${entryDescription}`);
   });
 
-  return ticket(number, subjectMatch ? subjectMatch[1].trim() : "Atendimento importado", statusByLabel[statusLabel] || "pendente", notes.join("\n"), "Normal", {
+  return createTicket(number, subjectMatch ? subjectMatch[1].trim() : "Atendimento importado", statusByLabel[statusLabel] || "pendente", notes.join("\n"), "Normal", {
     createdAt,
     statusUpdatedAt: createdAt,
     company: companyMatch ? companyMatch[1].trim() : "",
@@ -791,7 +848,7 @@ function parseReceiptPrintingRequest(text) {
   const companyCode = parenthesizedMatch ? parenthesizedMatch[2] : labeledMatch ? labeledMatch[3] : "";
   const createdAt = inferDateFromNumber(number);
 
-  return ticket(number, title || "Solicitacao de impressao de recibo", "pendente", "", "Normal", {
+  return createTicket(number, title || "Solicitacao de impressao de recibo", "pendente", "", "Normal", {
     createdAt,
     statusUpdatedAt: createdAt,
     companyCode,
@@ -803,42 +860,6 @@ function decodeCopiedHtmlEntities(value) {
     .replace(/&#x([\da-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)))
     .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number.parseInt(code, 10)))
     .replace(/&nbsp;/gi, " ");
-}
-
-function normalizeTicketDates(item) {
-  const createdAt = item.createdAt || item.updatedAt || new Date().toISOString();
-  const companyDetails = normalizeCompanyDetails(
-    item.companyCode,
-    item.company,
-    !Object.hasOwn(item, "companyCode"),
-  );
-  return {
-    ...item,
-    companyCode: companyDetails.code,
-    company: companyDetails.name,
-    createdAt,
-    statusUpdatedAt: item.statusUpdatedAt || item.updatedAt || createdAt,
-    archivedAt: item.archivedAt || "",
-  };
-}
-
-function normalizeCompanyDetails(companyCode, company, useKnownCode = false) {
-  const code = String(companyCode || "").trim();
-  const name = String(company || "").trim();
-  const legacyMatch = name.match(/^(\d+)\s*-\s*(.+)$/);
-  const codeOnly = name.match(/^\d+$/);
-  const cleanName = legacyMatch || codeOnly ? (legacyMatch?.[2] || "").trim() : name;
-  const knownCode = useKnownCode ? COMPANY_CODES.get(cleanName.toUpperCase()) : "";
-
-  return {
-    code: code || (legacyMatch ? legacyMatch[1] : codeOnly?.[0] || knownCode || ""),
-    name: cleanName,
-  };
-}
-
-function needsCompanyCodeMigration(original, normalized) {
-  return (original.companyCode || "") !== normalized.companyCode
-    || (original.company || "") !== normalized.company;
 }
 
 function nowDateTimeInputValue() {

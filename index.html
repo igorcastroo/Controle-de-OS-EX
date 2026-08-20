@@ -13,7 +13,12 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Excellent Sistemas</p>
-        <h1>Controle de OS</h1>
+        <div class="title-row">
+          <h1>Controle de OS</h1>
+          <button id="whatsappButton" class="whatsapp-button" type="button" title="Enviar resumo pelo WhatsApp" aria-label="Enviar resumo pelo WhatsApp">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3.2a12.5 12.5 0 0 0-10.7 19L4 29l7-1.8A12.5 12.5 0 1 0 16 3.2Z" fill="currentColor"/><path d="M24.3 20.5c-.3.9-1.6 1.6-2.5 1.8-.7.1-1.6.2-4.6-1.1-3.9-1.7-6.4-5.8-6.6-6.1-.2-.3-1.6-2.1-1.6-4s1-2.9 1.4-3.3c.3-.3.7-.4 1.1-.4h.8c.2 0 .5 0 .7.5l1.1 2.7c.1.3.1.6 0 .8l-.5.7c-.2.2-.3.4-.1.7.2.3.9 1.5 2 2.4 1.3 1.2 2.4 1.6 2.7 1.8.3.1.5.1.7-.1l.9-1.1c.2-.3.5-.3.8-.2l2.6 1.2c.4.2.6.3.7.5.1.2.1 1.1-.2 2Z" fill="#fff"/></svg>
+          </button>
+        </div>
       </div>
       <div class="actions">
         <button class="icon-button" id="themeButton" type="button" title="Alternar tema" aria-label="Alternar tema">◐</button>
@@ -153,6 +158,35 @@
           <span id="importHelp">Aceita listas por status e textos de Ver Detalhes Atendimento.</span>
           <button data-close="importDialog" type="button">Cancelar</button>
           <button id="runImportButton" class="primary" type="submit">Importar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="whatsappDialog">
+      <form method="dialog" class="dialog-form whatsapp-dialog" id="whatsappForm">
+        <div class="dialog-head">
+          <h2>Enviar resumo no WhatsApp</h2>
+          <button class="icon-button" data-close="whatsappDialog" type="button" aria-label="Fechar">&times;</button>
+        </div>
+        <p class="whatsapp-help">Marque os status que deseja enviar e escolha o período pela data da última atualização do status.</p>
+        <fieldset class="status-selector">
+          <legend>Status para enviar</legend>
+          <div id="whatsappStatusOptions" class="status-options"></div>
+        </fieldset>
+        <label>
+          <span>Data</span>
+          <input id="whatsappDateInput" type="date">
+        </label>
+        <div class="whatsapp-periods" role="group" aria-label="Período do dia">
+          <button type="button" data-whatsapp-period="today">Hoje</button>
+          <button type="button" data-whatsapp-period="morning">Manhã (até 12h)</button>
+          <button type="button" data-whatsapp-period="afternoon">Tarde/Noite</button>
+        </div>
+        <p id="whatsappSelectionInfo" class="whatsapp-selection-info"></p>
+        <div class="dialog-actions single">
+          <span></span>
+          <button data-close="whatsappDialog" type="button">Cancelar</button>
+          <button class="primary" type="submit">Abrir WhatsApp</button>
         </div>
       </form>
     </dialog>
