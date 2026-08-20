@@ -20,6 +20,18 @@ O sistema usa Firebase Authentication com Google e Cloud Firestore para sincroni
 
 O login Google precisa que o sistema seja aberto por um endereco web, como GitHub Pages ou Firebase Hosting. Abrir o `index.html` diretamente pelo Windows nao permite autenticar.
 
+### Regras de seguranca do Firestore
+
+As regras ficam em `firestore.rules`: cada pessoa autenticada pode acessar somente
+as OS do proprio usuario. Para publicar essa protecao no Firebase, instale a Firebase
+CLI, faca login e execute, na pasta do projeto:
+
+```powershell
+npm install -g firebase-tools
+firebase login
+firebase deploy --only firestore:rules
+```
+
 ## Recursos
 
 - Criar, editar e excluir OS
@@ -31,6 +43,7 @@ O login Google precisa que o sistema seja aberto por um endereco web, como GitHu
 
 ## Estrutura do codigo
 
+- Padrao: modulos ES (ES Modules) no navegador, com responsabilidades separadas.
 - `app.js`: interface, eventos e fluxos da aplicacao.
 - `js/tickets.js`: criacao e normalizacao das OS.
 - `js/storage.js`: persistencia local no navegador.
