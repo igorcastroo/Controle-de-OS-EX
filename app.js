@@ -27,12 +27,9 @@ const STATUSES = [
 
 const STORAGE_KEY = "controle-os-kanban-v1";
 const THEME_KEY = "controle-os-theme";
-const SEED_KEY = "controle-os-seed-v4";
 const COMPANY_CODES = new Map([
   ["PONTO CELL CLJ ACESSORIOS ELETRONICOS E ASSISTENCIA LTDA", "95646"],
 ]);
-
-const initialTickets = [];
 
 const localTickets = loadTickets();
 const state = {
@@ -167,29 +164,14 @@ function ticket(number, title, status, note = "", priority = "Normal", dates = {
 
 function loadTickets() {
   const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) {
-    localStorage.setItem(SEED_KEY, "true");
-    return initialTickets;
-  }
+  if (!saved) return [];
 
   try {
     const parsed = JSON.parse(saved);
-    if (!Array.isArray(parsed)) return initialTickets;
-    const normalized = parsed.map(normalizeTicketDates);
-    if (localStorage.getItem(SEED_KEY)) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-      return normalized;
-    }
-
-    const corrected = applySeedDateCorrections(normalized);
-    const knownNumbers = new Set(corrected.map((item) => item.number).filter(Boolean));
-    const missingTickets = initialTickets.filter((item) => !knownNumbers.has(item.number));
-    const mergedTickets = [...missingTickets, ...corrected];
-    localStorage.setItem(SEED_KEY, "true");
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedTickets));
-    return mergedTickets;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeTicketDates);
   } catch {
-    return initialTickets;
+    return [];
   }
 }
 
@@ -641,59 +623,6 @@ function archiveSelectedRange() {
   alert(`${archivedCount} OS resolvida(s) arquivada(s) no periodo selecionado.`);
 }
 
-function archiveSelectedMonthLegacy() {
-  const monthValue = archiveMonthInput.value;
-  if (!monthValue) {
-    alert("Selecione o mês que deseja arquivar.");
-    return;
-  }
-
-  const range = getMonthRange(monthValue);
-  const now = new Date().toISOString();
-  let archivedCount = 0;
-
-  state.tickets.forEach((item) => {
-    if (item.archivedAt || item.status !== "resolvido") return;
-    const statusDate = new Date(item.statusUpdatedAt);
-    if (Number.isNaN(statusDate.getTime())) return;
-    if (statusDate < range.start || statusDate > range.end) return;
-
-    item.archivedAt = now;
-    item.updatedAt = now;
-    archivedCount += 1;
-  });
-
-  if (archivedCount > 0) saveAll();
-  render();
-  alert(`${archivedCount} OS resolvida(s) arquivada(s) no mês selecionado.`);
-}
-
-function archiveSelectedMonth() {
-  const monthValue = archiveMonthInput.value;
-  if (!monthValue) {
-    alert("Selecione o mes que deseja arquivar.");
-    return;
-  }
-
-  const range = getMonthRange(monthValue);
-  const now = new Date().toISOString();
-  let archivedCount = 0;
-
-  state.tickets.forEach((item) => {
-    if (item.archivedAt || item.status !== "resolvido") return;
-    const statusDate = new Date(item.statusUpdatedAt);
-    if (Number.isNaN(statusDate.getTime()) || statusDate < range.start || statusDate > range.end) return;
-
-    item.archivedAt = now;
-    item.updatedAt = now;
-    archivedCount += 1;
-  });
-
-  if (archivedCount > 0) saveAll();
-  render();
-  alert(`${archivedCount} OS resolvida(s) arquivada(s) no mes selecionado.`);
-}
-
 function exportText() {
   const content = `CONTROLE-OS-TXT-V1\n${JSON.stringify({ tickets: state.tickets }, null, 2)}`;
 
@@ -873,62 +802,6 @@ function decodeCopiedHtmlEntities(value) {
     .replace(/&nbsp;/gi, " ");
 }
 
-function parseAttendanceDetailsLegacy(text) {
-  const plainText = String(text || "").replace(/\*\*/g, "").replace(/\r/g, "");
-  if (!/Ver Detalhes Atendimento/i.test(plainText) || !/Ordem No\.:/i.test(plainText)) return null;
-
-  const valueAfter = (label, source = plainText) => {
-    const match = source.match(new RegExp(`${label}\\s*\\n?\\s*([^\\n]+)`, "i"));
-    return match ? match[1].trim() : "";
-  };
-  const statusByLabel = {
-    pendente: "pendente",
-    "em andamento": "andamento",
-    aguardando: "aguardando",
-    resolvido: "resolvido",
-  };
-  const numberMatch = plainText.match(/Ordem No\.:\s*[\s\S]{0,120}?(\d{4}(?:\.\d+){3,})/i);
-  const statusMatch = plainText.match(/Status do Atendimento:\s*([\s\S]{0,80}?)(?:\s+Alterar Status|\n|$)/i);
-  const dateMatch = plainText.match(/Data\/Hora:\s*[\s\S]{0,120}?(\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?)/i);
-  const number = numberMatch ? numberMatch[1] : "";
-  const statusLabel = statusMatch ? statusMatch[1].trim().toLowerCase() : "";
-  const createdAt = parseBrazilianDateTime(dateMatch ? dateMatch[1] : "") || inferDateFromNumber(number);
-  const subjectMatch = plainText.match(/Assunto:\s*\n?\s*([\s\S]*?)\n\s*Descri[cç][aã]o:/i);
-  const descriptionMatch = plainText.match(/Descri[cç][aã]o:\s*\n?\s*([\s\S]*?)\n\s*HIST[ÓO]RICO DO ATENDIMENTO/i);
-  const subject = subjectMatch ? subjectMatch[1].trim() : "Atendimento importado";
-  const companyMatch = plainText.match(/Empresa:\s*[\s\S]{0,120}?([^\n]+?)(?=\s+Depto\. Destino:|\n|$)/i);
-  const company = companyMatch ? companyMatch[1].trim() : "";
-  const description = descriptionMatch ? descriptionMatch[1].trim() : "";
-  const notes = [];
-
-  if (description) {
-    notes.push(`[${formatDateTime(createdAt)}] Descricao inicial:\n${description}`);
-  }
-
-  const historyStart = plainText.search(/HIST[ÓO]RICO DO ATENDIMENTO/i);
-  const history = historyStart >= 0 ? plainText.slice(historyStart) : "";
-  history.split(/(?=^\s*Data:\s*$)/m).forEach((entry) => {
-    const dateMatch = entry.match(/Data:\s*[\s\S]{0,80}?(\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?)/i);
-    const date = dateMatch ? dateMatch[1] : "";
-    const action = valueAfter("A[cç][aã]o:", entry).replace(/\s+Respons[aá]vel:.*$/i, "").trim();
-    const responsible = valueAfter("Respons[aá]vel:", entry);
-    const descriptionMatch = entry.match(/Descri[cç][aã]o:\s*\n?\s*([\s\S]*)$/i);
-    const entryDescription = descriptionMatch ? descriptionMatch[1].trim() : "";
-    if (!date || !entryDescription) return;
-
-    const details = [action && `Acao: ${action}`, responsible && `Responsavel: ${responsible}`, entryDescription]
-      .filter(Boolean)
-      .join("\n");
-    notes.push(`[${formatDateTime(parseBrazilianDateTime(date))}] ${details}`);
-  });
-
-  return ticket(number, subject, statusByLabel[statusLabel] || "pendente", notes.join("\n"), "Normal", {
-    createdAt,
-    statusUpdatedAt: createdAt,
-    company,
-  });
-}
-
 function normalizeTicketDates(item) {
   const createdAt = item.createdAt || item.updatedAt || new Date().toISOString();
   const companyDetails = normalizeCompanyDetails(
@@ -965,35 +838,6 @@ function needsCompanyCodeMigration(original, normalized) {
     || (original.company || "") !== normalized.company;
 }
 
-function applySeedDateCorrections(tickets) {
-  const seedDates = new Map();
-  initialTickets.forEach((item) => {
-    if (!item.number) return;
-    seedDates.set(item.number, {
-      status: item.status,
-      createdAt: item.createdAt,
-      statusUpdatedAt: item.statusUpdatedAt,
-    });
-  });
-
-  return tickets.map((item) => {
-    const seed = seedDates.get(item.number);
-    if (!seed) return item;
-
-    return {
-      ...item,
-      createdAt: seed.createdAt || item.createdAt,
-      statusUpdatedAt: item.status === seed.status
-        ? seed.statusUpdatedAt || item.statusUpdatedAt
-        : item.statusUpdatedAt,
-    };
-  });
-}
-
-function todayInputValue() {
-  return toDateInputValue(new Date().toISOString());
-}
-
 function nowDateTimeInputValue() {
   return toDateTimeInputValue(new Date().toISOString());
 }
@@ -1010,11 +854,6 @@ function toDateTimeInputValue(value) {
   const parts = getDateParts(value);
   if (!parts) return "";
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
-}
-
-function fromDateInputValue(value) {
-  if (!value) return "";
-  return `${value}T12:00:00.000Z`;
 }
 
 function fromDateTimeInputValue(value) {
@@ -1079,10 +918,6 @@ function inferDateFromNumber(number) {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T12:00:00.000Z`;
 }
 
-function toMonthInputValue(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
 function matchesDateRange(item) {
   if (!state.dateFrom && !state.dateTo) return true;
   const range = getSelectedDateRange();
@@ -1100,13 +935,6 @@ function getSelectedDateRange() {
     start: state.dateFrom ? new Date(`${state.dateFrom}T00:00:00`) : null,
     end: state.dateTo ? new Date(`${state.dateTo}T23:59:59.999`) : null,
   };
-}
-
-function getMonthRange(value) {
-  const [year, month] = value.split("-").map(Number);
-  const start = new Date(year, month - 1, 1, 0, 0, 0, 0);
-  const end = new Date(year, month, 0, 23, 59, 59, 999);
-  return { start, end };
 }
 
 function formatDate(value) {
