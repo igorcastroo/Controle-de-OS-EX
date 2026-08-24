@@ -484,8 +484,11 @@ function saveTicket(event) {
     priority: document.querySelector("#priorityInput").value,
     note: noteInput.value.trim(),
     createdAt: fromDateTimeInputValue(document.querySelector("#createdAtInput").value) || previous?.createdAt || new Date().toISOString(),
+    // A data do status é a referência para arquivamento por período. Quando o
+    // status mudar, respeite a data informada no formulário (preenchida com
+    // "agora" por padrão), em vez de sempre substituí-la no momento de salvar.
     statusUpdatedAt: statusChanged
-      ? new Date().toISOString()
+      ? fromDateTimeInputValue(statusDateInput) || new Date().toISOString()
       : fromDateTimeInputValue(statusDateInput) || previous?.statusUpdatedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
