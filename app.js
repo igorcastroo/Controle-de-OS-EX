@@ -108,14 +108,22 @@ document.querySelectorAll("[data-whatsapp-period]").forEach((button) => {
 authButton.addEventListener("click", toggleAuthentication);
 migrateButton.addEventListener("click", migrateLocalTickets);
 archiveViewButton.addEventListener("click", toggleArchiveView);
-dateFromInput.addEventListener("input", (event) => {
+function updateDateFrom(event) {
   state.dateFrom = event.target.value;
   render();
-});
-dateToInput.addEventListener("input", (event) => {
+}
+
+function updateDateTo(event) {
   state.dateTo = event.target.value;
   render();
-});
+}
+
+// Alguns navegadores só confirmam a digitação em campos type="date" no
+// evento "change". Escutamos os dois eventos para manter o filtro sincronizado.
+dateFromInput.addEventListener("input", updateDateFrom);
+dateFromInput.addEventListener("change", updateDateFrom);
+dateToInput.addEventListener("input", updateDateTo);
+dateToInput.addEventListener("change", updateDateTo);
 todayFilterButton.addEventListener("click", () => {
   const today = toDateInputValue(new Date());
   dateFromInput.value = today;
@@ -958,9 +966,14 @@ function matchesDateRange(item) {
 }
 
 function getSelectedDateRange() {
+  // Leia os campos diretamente: ao clicar em "Arquivar resolvidas" a data
+  // digitada precisa valer mesmo se o navegador ainda não disparou "input".
+  const dateFrom = dateFromInput.value || state.dateFrom;
+  const dateTo = dateToInput.value || state.dateTo;
+
   return {
-    start: state.dateFrom ? new Date(`${state.dateFrom}T00:00:00`) : null,
-    end: state.dateTo ? new Date(`${state.dateTo}T23:59:59.999`) : null,
+    start: dateFrom ? new Date(`${dateFrom}T00:00:00`) : null,
+    end: dateTo ? new Date(`${dateTo}T23:59:59.999`) : null,
   };
 }
 
