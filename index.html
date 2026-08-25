@@ -44,7 +44,7 @@
         <div class="archive-controls" aria-label="Filtrar e arquivar OS por periodo">
           <input id="dateFromInput" type="date" aria-label="Data inicial" title="Data inicial">
           <span class="range-separator" aria-hidden="true">a</span>
-          <input id="dateToInput" type="date" aria-label="Data final" title="Data final">
+          <input id="dateToInput" type="text" inputmode="numeric" placeholder="dd/mm/aaaa" maxlength="10" aria-label="Data final" title="Data final: dias acima do ultimo dia do mes sao ajustados automaticamente">
           <button id="todayFilterButton" type="button" title="Filtrar OS de hoje">Hoje</button>
           <button id="clearDateFilterButton" type="button" title="Limpar filtro de datas">Limpar</button>
           <button id="archiveRangeButton" type="button" title="Arquivar somente as OS resolvidas conforme a data do status no período selecionado">Arquivar resolvidas</button>
