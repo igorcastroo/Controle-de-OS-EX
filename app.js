@@ -558,7 +558,7 @@ function addTimestampedNote() {
   const text = noteEntryInput.value.trim();
   if (!text) return;
 
-  const entry = `[${formatDateTime(new Date().toISOString())}] Cadastro\n${text}`;
+  const entry = `[${formatDateTime(new Date().toISOString())}]:\n${text}`;
   noteInput.value = noteInput.value.trim()
     ? `${noteInput.value.trim()}\n${entry}`
     : entry;
@@ -662,7 +662,7 @@ function parseNoteEntries(value) {
   return String(value || "")
     // Uma nova observacao sempre comeca pelo carimbo criado no botao.
     // Quebras de linha comuns fazem parte da mesma observacao.
-    .split(/\n(?=\[\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}\]\s)/)
+    .split(/\n(?=\[\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}\](?::|\s))/)
     .map((entry) => entry.trim())
     .filter(Boolean);
 }
