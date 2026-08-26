@@ -356,7 +356,11 @@ function sendWhatsappSummary(event) {
     "",
     ...groups.flatMap((group) => [
       `*${group.label} (${group.tickets.length})*`,
-      ...group.tickets.map((item) => `• ${item.number || "Sem número"} — ${item.company ? `${item.company}: ` : ""}${item.title}`),
+      ...group.tickets.flatMap((item) => {
+        const ticketLine = `• ${item.number || "Sem número"} — ${item.company ? `${item.company}: ` : ""}${item.title}`;
+        const note = String(item.note || "").trim();
+        return note ? [ticketLine, `  *OBS:* ${note}`] : [ticketLine];
+      }),
       "",
     ]),
   ].join("\n").trim();
