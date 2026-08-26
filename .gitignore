@@ -4,3 +4,14 @@ controle-os-*.txt
 # Arquivos locais do sistema
 .DS_Store
 Thumbs.db
+
+# Arquivos temporarios, logs e pacotes de distribuicao
+.firebase/
+firebase-debug.log
+*.tmp
+*.temp
+*.log
+*.bak
+*.zip
+*.rar
+*.7z
