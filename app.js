@@ -356,10 +356,11 @@ function sendWhatsappSummary(event) {
     "",
     ...groups.flatMap((group) => [
       `*${group.label} (${group.tickets.length})*`,
-      ...group.tickets.flatMap((item) => {
+      ...group.tickets.flatMap((item, index) => {
         const ticketLine = `• ${item.number || "Sem número"} — ${item.company ? `${item.company}: ` : ""}${item.title}`;
-        const note = String(item.note || "").trim();
-        return note ? [ticketLine, `  *OBS:* ${note}`] : [ticketLine];
+        const note = String(item.note || "").trim().replace(/\s*\r?\n\s*/g, " ");
+        const separator = index < group.tickets.length - 1 ? [""] : [];
+        return [ticketLine, ...(note ? [`  *OBS:* ${note}`] : []), ...separator];
       }),
       "",
     ]),
