@@ -173,14 +173,25 @@
           <legend>Status para enviar</legend>
           <div id="whatsappStatusOptions" class="status-options"></div>
         </fieldset>
-        <label>
+        <label id="whatsappSingleDateField">
           <span>Data</span>
           <input id="whatsappDateInput" type="date">
         </label>
+        <div id="whatsappCustomDates" class="whatsapp-custom-dates" hidden>
+          <label>
+            <span>Data inicial</span>
+            <input id="whatsappDateFromInput" type="date">
+          </label>
+          <label>
+            <span>Data final</span>
+            <input id="whatsappDateToInput" type="date">
+          </label>
+        </div>
         <div class="whatsapp-periods" role="group" aria-label="Período do dia">
           <button type="button" data-whatsapp-period="today">Hoje</button>
           <button type="button" data-whatsapp-period="morning">Manhã (até 12h)</button>
           <button type="button" data-whatsapp-period="afternoon">Tarde/Noite</button>
+          <button type="button" data-whatsapp-period="custom">Personalizado</button>
         </div>
         <p id="whatsappSelectionInfo" class="whatsapp-selection-info"></p>
         <div class="dialog-actions single">

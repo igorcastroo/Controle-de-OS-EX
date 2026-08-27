@@ -76,6 +76,10 @@ const whatsappButton = document.querySelector("#whatsappButton");
 const whatsappDialog = document.querySelector("#whatsappDialog");
 const whatsappForm = document.querySelector("#whatsappForm");
 const whatsappDateInput = document.querySelector("#whatsappDateInput");
+const whatsappSingleDateField = document.querySelector("#whatsappSingleDateField");
+const whatsappCustomDates = document.querySelector("#whatsappCustomDates");
+const whatsappDateFromInput = document.querySelector("#whatsappDateFromInput");
+const whatsappDateToInput = document.querySelector("#whatsappDateToInput");
 const whatsappStatusOptions = document.querySelector("#whatsappStatusOptions");
 const whatsappSelectionInfo = document.querySelector("#whatsappSelectionInfo");
 let editingNoteIndex = null;
@@ -99,9 +103,16 @@ document.querySelector("#themeButton").addEventListener("click", toggleTheme);
 whatsappButton.addEventListener("click", openWhatsappDialog);
 whatsappForm.addEventListener("submit", sendWhatsappSummary);
 whatsappDateInput.addEventListener("input", updateWhatsappSelection);
+whatsappDateFromInput.addEventListener("input", updateWhatsappSelection);
+whatsappDateToInput.addEventListener("input", updateWhatsappSelection);
 document.querySelectorAll("[data-whatsapp-period]").forEach((button) => {
   button.addEventListener("click", () => {
     whatsappPeriod = button.dataset.whatsappPeriod;
+    if (whatsappPeriod === "custom") {
+      const selectedDate = whatsappDateInput.value || toDateInputValue(new Date());
+      if (!whatsappDateFromInput.value) whatsappDateFromInput.value = selectedDate;
+      if (!whatsappDateToInput.value) whatsappDateToInput.value = selectedDate;
+    }
     updateWhatsappSelection();
   });
 });
@@ -293,14 +304,20 @@ function setupStatusOptions() {
 
 function setupWhatsappStatusOptions() {
   whatsappStatusOptions.innerHTML = STATUSES.map((status) => (
-    `<label><input type="checkbox" name="whatsappStatus" value="${status.id}" checked> ${status.label}</label>`
+    `<label><input type="checkbox" name="whatsappStatus" value="${status.id}"> <span data-whatsapp-status-label="${status.id}">${status.label} (0)</span></label>`
   )).join("");
   whatsappStatusOptions.addEventListener("change", updateWhatsappSelection);
 }
 
 function openWhatsappDialog() {
-  whatsappDateInput.value = toDateInputValue(new Date());
+  const today = toDateInputValue(new Date());
+  whatsappDateInput.value = today;
+  whatsappDateFromInput.value = today;
+  whatsappDateToInput.value = today;
   whatsappPeriod = "today";
+  whatsappStatusOptions.querySelectorAll("input").forEach((input) => {
+    input.checked = false;
+  });
   updateWhatsappSelection();
   whatsappDialog.showModal();
 }
@@ -309,6 +326,15 @@ function updateWhatsappSelection() {
   document.querySelectorAll("[data-whatsapp-period]").forEach((button) => {
     button.classList.toggle("active", button.dataset.whatsappPeriod === whatsappPeriod);
   });
+  const isCustomPeriod = whatsappPeriod === "custom";
+  whatsappSingleDateField.hidden = isCustomPeriod;
+  whatsappCustomDates.hidden = !isCustomPeriod;
+  const availableTickets = getWhatsappTicketsForStatuses(STATUSES.map((status) => status.id));
+  STATUSES.forEach((status) => {
+    const count = availableTickets.filter((item) => item.status === status.id).length;
+    const label = whatsappStatusOptions.querySelector(`[data-whatsapp-status-label="${status.id}"]`);
+    if (label) label.textContent = `${status.label} (${count})`;
+  });
   const count = getWhatsappTickets().length;
   whatsappSelectionInfo.textContent = `${count} OS sera(ão) enviada(s).`;
 }
@@ -316,6 +342,10 @@ function updateWhatsappSelection() {
 function getWhatsappTickets() {
   const selectedStatuses = [...whatsappStatusOptions.querySelectorAll("input:checked")]
     .map((input) => input.value);
+  return getWhatsappTicketsForStatuses(selectedStatuses);
+}
+
+function getWhatsappTicketsForStatuses(selectedStatuses) {
   const range = getWhatsappPeriodRange();
   if (!selectedStatuses.length || !range) return [];
 
@@ -329,6 +359,14 @@ function getWhatsappTickets() {
 }
 
 function getWhatsappPeriodRange() {
+  if (whatsappPeriod === "custom") {
+    if (!whatsappDateFromInput.value || !whatsappDateToInput.value) return null;
+    const [startYear, startMonth, startDay] = whatsappDateFromInput.value.split("-").map(Number);
+    const [endYear, endMonth, endDay] = whatsappDateToInput.value.split("-").map(Number);
+    const start = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+    const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
+    return start <= end ? { start, end } : null;
+  }
   if (!whatsappDateInput.value) return null;
   const [year, month, day] = whatsappDateInput.value.split("-").map(Number);
   const start = new Date(year, month - 1, day, whatsappPeriod === "afternoon" ? 12 : 0, 0, 0, 0);
@@ -344,23 +382,27 @@ function sendWhatsappSummary(event) {
     return;
   }
 
-  const selectedDate = whatsappDateInput.value;
-  const periodLabel = { today: "Hoje", morning: "Manhã (até 12h)", afternoon: "Tarde/Noite" }[whatsappPeriod];
+  const selectedDate = whatsappPeriod === "custom"
+    ? `${formatDate(`${whatsappDateFromInput.value}T12:00:00`)} a ${formatDate(`${whatsappDateToInput.value}T12:00:00`)}`
+    : formatDate(`${whatsappDateInput.value}T12:00:00`);
+  const periodLabel = { today: "Hoje", morning: "Manhã (até 12h)", afternoon: "Tarde/Noite", custom: "Personalizado" }[whatsappPeriod];
   const groups = STATUSES.map((status) => ({
     ...status,
     tickets: tickets.filter((item) => item.status === status.id),
   })).filter((group) => group.tickets.length);
   const message = [
-    `*Controle de OS — ${formatDate(`${selectedDate}T12:00:00`)}*`,
+    `*Controle de OS — ${selectedDate}*`,
     `*Período:* ${periodLabel}`,
     "",
     ...groups.flatMap((group) => [
       `*${group.label} (${group.tickets.length})*`,
       ...group.tickets.flatMap((item, index) => {
         const ticketLine = `• ${item.number || "Sem número"} — ${item.company ? `${item.company}: ` : ""}${item.title}`;
-        const note = String(item.note || "").trim().replace(/\s*\r?\n\s*/g, " ");
+        const note = parseNoteEntries(item.note)
+          .map((entry) => entry.replace(/\s*\r?\n\s*/g, " "))
+          .join("\n\n");
         const separator = index < group.tickets.length - 1 ? [""] : [];
-        return [ticketLine, ...(note ? [`  *OBS:* ${note}`] : []), ...separator];
+        return [ticketLine, ...(note ? [`  *OBS:*\n${note}`] : []), ...separator];
       }),
       "",
     ]),
