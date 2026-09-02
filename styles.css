@@ -181,7 +181,8 @@ main {
 }
 
 .archive-controls button,
-#headerNewButton {
+#headerNewButton,
+#dailyViewButton {
   min-height: 44px;
   white-space: nowrap;
 }
