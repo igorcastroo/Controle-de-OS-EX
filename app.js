@@ -82,6 +82,7 @@ const dailyTicketInput = document.querySelector("#dailyTicketInput");
 const dailyEntries = document.querySelector("#dailyEntries");
 const dailyLinkedTickets = document.querySelector("#dailyLinkedTickets");
 const dailySummaryText = document.querySelector("#dailySummaryText");
+const dailyWhatsappButton = document.querySelector("#dailyWhatsappButton");
 const dateFromInput = document.querySelector("#dateFromInput");
 const dateToInput = document.querySelector("#dateToInput");
 const todayFilterButton = document.querySelector("#todayFilterButton");
@@ -110,6 +111,21 @@ const whatsappDateToInput = document.querySelector("#whatsappDateToInput");
 const whatsappStatusOptions = document.querySelector("#whatsappStatusOptions");
 const whatsappSelectionInfo = document.querySelector("#whatsappSelectionInfo");
 const whatsappIncludeDailyInput = document.querySelector("#whatsappIncludeDailyInput");
+const hasDailyView = [
+  dailyViewButton,
+  dailyView,
+  dailyDateInput,
+  dailyTitle,
+  dailyCount,
+  dailyEntryForm,
+  dailyTextInput,
+  dailyCategoryInput,
+  dailyTicketInput,
+  dailyEntries,
+  dailyLinkedTickets,
+  dailySummaryText,
+  dailyWhatsappButton,
+].every(Boolean);
 let editingNoteIndex = null;
 let whatsappPeriod = "today";
 
@@ -133,7 +149,7 @@ whatsappForm.addEventListener("submit", sendWhatsappSummary);
 whatsappDateInput.addEventListener("input", updateWhatsappSelection);
 whatsappDateFromInput.addEventListener("input", updateWhatsappSelection);
 whatsappDateToInput.addEventListener("input", updateWhatsappSelection);
-whatsappIncludeDailyInput.addEventListener("change", updateWhatsappSelection);
+whatsappIncludeDailyInput?.addEventListener("change", updateWhatsappSelection);
 document.querySelectorAll("[data-whatsapp-period]").forEach((button) => {
   button.addEventListener("click", () => {
     whatsappPeriod = button.dataset.whatsappPeriod;
@@ -148,30 +164,32 @@ document.querySelectorAll("[data-whatsapp-period]").forEach((button) => {
 authButton.addEventListener("click", toggleAuthentication);
 migrateButton.addEventListener("click", migrateLocalTickets);
 archiveViewButton.addEventListener("click", toggleArchiveView);
-dailyViewButton.addEventListener("click", toggleDailyView);
-dailyDateInput.addEventListener("change", () => {
-  state.dailyDate = dailyDateInput.value || toDateInputValue(new Date());
-  renderDailyView();
-});
-document.querySelector("#dailyTodayButton").addEventListener("click", () => {
-  state.dailyDate = toDateInputValue(new Date());
-  renderDailyView();
-});
-document.querySelector("#dailyPreviousButton").addEventListener("click", () => changeDailyDate(-1));
-document.querySelector("#dailyNextButton").addEventListener("click", () => changeDailyDate(1));
-document.querySelectorAll("[data-daily-period]").forEach((button) => {
-  button.addEventListener("click", () => {
-    state.dailyPeriod = button.dataset.dailyPeriod;
+if (hasDailyView) {
+  dailyViewButton.addEventListener("click", toggleDailyView);
+  dailyDateInput.addEventListener("change", () => {
+    state.dailyDate = dailyDateInput.value || toDateInputValue(new Date());
     renderDailyView();
   });
-});
-dailyEntryForm.addEventListener("submit", addDailyEntry);
-document.querySelector("#dailyWhatsappButton").addEventListener("click", () => {
-  openWhatsappDialog();
-  whatsappDateInput.value = state.dailyDate;
-  whatsappPeriod = state.dailyPeriod;
-  updateWhatsappSelection();
-});
+  document.querySelector("#dailyTodayButton").addEventListener("click", () => {
+    state.dailyDate = toDateInputValue(new Date());
+    renderDailyView();
+  });
+  document.querySelector("#dailyPreviousButton").addEventListener("click", () => changeDailyDate(-1));
+  document.querySelector("#dailyNextButton").addEventListener("click", () => changeDailyDate(1));
+  document.querySelectorAll("[data-daily-period]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.dailyPeriod = button.dataset.dailyPeriod;
+      renderDailyView();
+    });
+  });
+  dailyEntryForm.addEventListener("submit", addDailyEntry);
+  dailyWhatsappButton.addEventListener("click", () => {
+    openWhatsappDialog();
+    whatsappDateInput.value = state.dailyDate;
+    whatsappPeriod = state.dailyPeriod;
+    updateWhatsappSelection();
+  });
+}
 function updateDateFrom(event) {
   state.dateFrom = event.target.value;
   render();
@@ -321,7 +339,7 @@ function handleAuthenticationState(user) {
       id: entryDocument.id,
     }));
     saveTickets(DAILY_STORAGE_KEY, state.dailyEntries);
-    renderDailyView();
+    if (hasDailyView) renderDailyView();
   }, (error) => {
     syncStatus.textContent = `Erro ao sincronizar Diário: ${error.message}`;
   });
@@ -401,6 +419,7 @@ function openWhatsappDialog() {
   whatsappDateFromInput.value = today;
   whatsappDateToInput.value = today;
   whatsappPeriod = "today";
+  if (whatsappIncludeDailyInput) whatsappIncludeDailyInput.checked = true;
   whatsappStatusOptions.querySelectorAll("input").forEach((input) => {
     input.checked = false;
   });
@@ -464,13 +483,13 @@ function render() {
   board.innerHTML = "";
   const tickets = filteredTickets();
   const isArchivedView = state.view === "archived";
-  const isDailyView = state.view === "daily";
+  const isDailyView = hasDailyView && state.view === "daily";
 
   archiveViewButton.textContent = isArchivedView ? "Ver ativas" : "Ver arquivadas";
-  dailyViewButton.classList.toggle("active", isDailyView);
-  dailyViewButton.setAttribute("aria-pressed", String(isDailyView));
+  dailyViewButton?.classList.toggle("active", isDailyView);
+  dailyViewButton?.setAttribute("aria-pressed", String(isDailyView));
   board.hidden = isDailyView;
-  dailyView.hidden = !isDailyView;
+  if (dailyView) dailyView.hidden = !isDailyView;
   archiveRangeButton.disabled = isArchivedView || !state.user;
   newButtons.forEach((button) => {
     button.disabled = isArchivedView || !state.user;
@@ -509,6 +528,7 @@ function render() {
 }
 
 function toggleDailyView() {
+  if (!hasDailyView) return;
   state.view = state.view === "daily" ? "active" : "daily";
   render();
 }
@@ -521,6 +541,7 @@ function changeDailyDate(dayOffset) {
 }
 
 function renderDailyView() {
+  if (!hasDailyView) return;
   dailyDateInput.value = state.dailyDate;
   dailyTitle.textContent = formatDate(`${state.dailyDate}T12:00:00`);
   const dayEntries = getDailyEntriesFor(state.dailyEntries, state.dailyDate, state.dailyPeriod);
@@ -1319,12 +1340,12 @@ function updateWhatsappSelection() {
   });
   const ticketCount = getWhatsappTickets().length;
   const dailyCount = getWhatsappDailyEntries().length;
-  const dailyInfo = whatsappIncludeDailyInput.checked ? ` e ${dailyCount} atividade(s) do Diário` : "";
+  const dailyInfo = whatsappIncludeDailyInput?.checked ? ` e ${dailyCount} atividade(s) do Diário` : "";
   whatsappSelectionInfo.textContent = `${ticketCount} OS será(ão) enviada(s)${dailyInfo}.`;
 }
 
 function getWhatsappDailyEntries() {
-  if (!whatsappIncludeDailyInput.checked) return [];
+  if (!whatsappIncludeDailyInput?.checked) return [];
   const dateFrom = whatsappPeriod === "custom" ? whatsappDateFromInput.value : whatsappDateInput.value;
   const dateTo = whatsappPeriod === "custom" ? whatsappDateToInput.value : whatsappDateInput.value;
   if (!dateFrom || !dateTo || dateFrom > dateTo) return [];
