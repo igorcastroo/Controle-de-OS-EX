@@ -285,12 +285,19 @@ main {
 
 .daily-entry-form {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) 140px minmax(150px, 0.72fr) auto;
+  grid-template-columns: 140px minmax(150px, 1fr) auto;
   gap: 8px;
   align-items: end;
 }
 
-.daily-entry-form input,
+.daily-text-field {
+  grid-column: 1 / -1;
+}
+
+.daily-entry-form textarea {
+  min-height: 118px;
+}
+
 .daily-entry-form select,
 .daily-entry-form button {
   min-height: 42px;

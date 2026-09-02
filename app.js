@@ -556,7 +556,9 @@ function renderDailyView() {
   const enabled = Boolean(state.user);
   [dailyTextInput, dailyCategoryInput, dailyTicketInput, dailyEntryForm.querySelector("button")]
     .forEach((element) => { element.disabled = !enabled; });
-  dailyTextInput.placeholder = enabled ? "Ex.: EXE para teste Nunes" : "Entre com Google para registrar atividades";
+  dailyTextInput.placeholder = enabled
+    ? "Descreva as atividades realizadas no período..."
+    : "Entre com Google para registrar atividades";
 
   dailyEntries.innerHTML = "";
   if (!dayEntries.length) {
