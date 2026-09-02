@@ -53,3 +53,15 @@ export function salvarOS(userId, ticket) {
 export function excluirOS(userId, ticketId) {
   return deleteDoc(doc(firestore, "users", userId, "tickets", ticketId));
 }
+
+export function observarDiario(userId, aoAtualizar, aoDarErro) {
+  return onSnapshot(collection(firestore, "users", userId, "dailyEntries"), aoAtualizar, aoDarErro);
+}
+
+export function salvarRegistroDiario(userId, entry) {
+  return setDoc(doc(firestore, "users", userId, "dailyEntries", entry.id), entry);
+}
+
+export function excluirRegistroDiario(userId, entryId) {
+  return deleteDoc(doc(firestore, "users", userId, "dailyEntries", entryId));
+}

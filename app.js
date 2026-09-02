@@ -1,9 +1,12 @@
 import {
   entrarComGoogle,
+  excluirRegistroDiario,
   excluirOS,
   observarAutenticacao,
+  observarDiario,
   observarOS,
   sairDaConta,
+  salvarRegistroDiario,
   salvarOS,
 } from "./firebase.js";
 import {
@@ -12,6 +15,13 @@ import {
   normalizeCompanyDetails,
   normalizeTicketDates,
 } from "./js/tickets.js";
+import {
+  createDailyEntry,
+  getDailyEntriesFor,
+  getDailyEntriesForDate,
+  getDailyEntriesInRange,
+  normalizeDailyEntry,
+} from "./js/daily.js";
 import { loadTickets, saveTickets } from "./js/storage.js";
 
 const STATUSES = [
@@ -24,6 +34,7 @@ const STATUSES = [
 ];
 
 const STORAGE_KEY = "controle-os-kanban-v1";
+const DAILY_STORAGE_KEY = "controle-os-daily-v1";
 const THEME_KEY = "controle-os-theme";
 const COMPANY_CODES = new Map([
   ["PONTO CELL CLJ ACESSORIOS ELETRONICOS E ASSISTENCIA LTDA", "95646"],
@@ -32,14 +43,18 @@ const COMPANY_CODES = new Map([
 const localTickets = loadTickets(STORAGE_KEY, (item) => normalizeTicketDates(item, COMPANY_CODES));
 const state = {
   tickets: [],
+  dailyEntries: [],
   localTickets,
   search: "",
   draggedId: null,
   view: "active",
+  dailyDate: toDateInputValue(new Date()),
+  dailyPeriod: "afternoon",
   dateFrom: "",
   dateTo: "",
   user: null,
   unsubscribeTickets: null,
+  unsubscribeDailyEntries: null,
 };
 
 const board = document.querySelector("#board");
@@ -55,6 +70,18 @@ const importDialog = document.querySelector("#importDialog");
 const importForm = document.querySelector("#importForm");
 const importText = document.querySelector("#importText");
 const archiveViewButton = document.querySelector("#archiveViewButton");
+const dailyViewButton = document.querySelector("#dailyViewButton");
+const dailyView = document.querySelector("#dailyView");
+const dailyDateInput = document.querySelector("#dailyDateInput");
+const dailyTitle = document.querySelector("#dailyTitle");
+const dailyCount = document.querySelector("#dailyCount");
+const dailyEntryForm = document.querySelector("#dailyEntryForm");
+const dailyTextInput = document.querySelector("#dailyTextInput");
+const dailyCategoryInput = document.querySelector("#dailyCategoryInput");
+const dailyTicketInput = document.querySelector("#dailyTicketInput");
+const dailyEntries = document.querySelector("#dailyEntries");
+const dailyLinkedTickets = document.querySelector("#dailyLinkedTickets");
+const dailySummaryText = document.querySelector("#dailySummaryText");
 const dateFromInput = document.querySelector("#dateFromInput");
 const dateToInput = document.querySelector("#dateToInput");
 const todayFilterButton = document.querySelector("#todayFilterButton");
@@ -82,6 +109,7 @@ const whatsappDateFromInput = document.querySelector("#whatsappDateFromInput");
 const whatsappDateToInput = document.querySelector("#whatsappDateToInput");
 const whatsappStatusOptions = document.querySelector("#whatsappStatusOptions");
 const whatsappSelectionInfo = document.querySelector("#whatsappSelectionInfo");
+const whatsappIncludeDailyInput = document.querySelector("#whatsappIncludeDailyInput");
 let editingNoteIndex = null;
 let whatsappPeriod = "today";
 
@@ -105,6 +133,7 @@ whatsappForm.addEventListener("submit", sendWhatsappSummary);
 whatsappDateInput.addEventListener("input", updateWhatsappSelection);
 whatsappDateFromInput.addEventListener("input", updateWhatsappSelection);
 whatsappDateToInput.addEventListener("input", updateWhatsappSelection);
+whatsappIncludeDailyInput.addEventListener("change", updateWhatsappSelection);
 document.querySelectorAll("[data-whatsapp-period]").forEach((button) => {
   button.addEventListener("click", () => {
     whatsappPeriod = button.dataset.whatsappPeriod;
@@ -119,6 +148,30 @@ document.querySelectorAll("[data-whatsapp-period]").forEach((button) => {
 authButton.addEventListener("click", toggleAuthentication);
 migrateButton.addEventListener("click", migrateLocalTickets);
 archiveViewButton.addEventListener("click", toggleArchiveView);
+dailyViewButton.addEventListener("click", toggleDailyView);
+dailyDateInput.addEventListener("change", () => {
+  state.dailyDate = dailyDateInput.value || toDateInputValue(new Date());
+  renderDailyView();
+});
+document.querySelector("#dailyTodayButton").addEventListener("click", () => {
+  state.dailyDate = toDateInputValue(new Date());
+  renderDailyView();
+});
+document.querySelector("#dailyPreviousButton").addEventListener("click", () => changeDailyDate(-1));
+document.querySelector("#dailyNextButton").addEventListener("click", () => changeDailyDate(1));
+document.querySelectorAll("[data-daily-period]").forEach((button) => {
+  button.addEventListener("click", () => {
+    state.dailyPeriod = button.dataset.dailyPeriod;
+    renderDailyView();
+  });
+});
+dailyEntryForm.addEventListener("submit", addDailyEntry);
+document.querySelector("#dailyWhatsappButton").addEventListener("click", () => {
+  openWhatsappDialog();
+  whatsappDateInput.value = state.dailyDate;
+  whatsappPeriod = state.dailyPeriod;
+  updateWhatsappSelection();
+});
 function updateDateFrom(event) {
   state.dateFrom = event.target.value;
   render();
@@ -228,12 +281,15 @@ async function toggleAuthentication() {
 
 function handleAuthenticationState(user) {
   state.unsubscribeTickets?.();
+  state.unsubscribeDailyEntries?.();
   state.unsubscribeTickets = null;
+  state.unsubscribeDailyEntries = null;
   state.user = user;
   authButton.textContent = user ? "Sair" : "Entrar com Google";
 
   if (!user) {
     state.tickets = [];
+    state.dailyEntries = [];
     migrateButton.hidden = true;
     syncStatus.textContent = "Entre com Google para acessar suas OS na nuvem.";
     render();
@@ -259,6 +315,16 @@ function handleAuthenticationState(user) {
   }, (error) => {
     syncStatus.textContent = `Erro ao sincronizar: ${error.message}`;
   });
+  state.unsubscribeDailyEntries = observarDiario(user.uid, (snapshot) => {
+    state.dailyEntries = snapshot.docs.map((entryDocument) => normalizeDailyEntry({
+      ...entryDocument.data(),
+      id: entryDocument.id,
+    }));
+    saveTickets(DAILY_STORAGE_KEY, state.dailyEntries);
+    renderDailyView();
+  }, (error) => {
+    syncStatus.textContent = `Erro ao sincronizar Diário: ${error.message}`;
+  });
 }
 
 async function saveTicketToFirestore(ticketItem) {
@@ -278,6 +344,26 @@ async function deleteTicketFromFirestore(ticketId) {
     await excluirOS(state.user.uid, ticketId);
   } catch (error) {
     syncStatus.textContent = `Erro ao excluir: ${error.message}`;
+  }
+}
+
+async function saveDailyEntryToFirestore(entry) {
+  if (!state.user) return false;
+  try {
+    await salvarRegistroDiario(state.user.uid, entry);
+    return true;
+  } catch (error) {
+    syncStatus.textContent = `Erro ao salvar atividade: ${error.message}`;
+    return false;
+  }
+}
+
+async function deleteDailyEntryFromFirestore(entryId) {
+  if (!state.user) return;
+  try {
+    await excluirRegistroDiario(state.user.uid, entryId);
+  } catch (error) {
+    syncStatus.textContent = `Erro ao excluir atividade: ${error.message}`;
   }
 }
 
@@ -374,57 +460,31 @@ function getWhatsappPeriodRange() {
   return { start, end };
 }
 
-function sendWhatsappSummary(event) {
-  event.preventDefault();
-  const tickets = getWhatsappTickets();
-  if (!tickets.length) {
-    alert("Nenhuma OS encontrada para os status e período selecionados.");
-    return;
-  }
-
-  const selectedDate = whatsappPeriod === "custom"
-    ? `${formatDate(`${whatsappDateFromInput.value}T12:00:00`)} a ${formatDate(`${whatsappDateToInput.value}T12:00:00`)}`
-    : formatDate(`${whatsappDateInput.value}T12:00:00`);
-  const periodLabel = { today: "Hoje", morning: "Manhã (até 12h)", afternoon: "Tarde/Noite", custom: "Personalizado" }[whatsappPeriod];
-  const groups = STATUSES.map((status) => ({
-    ...status,
-    tickets: tickets.filter((item) => item.status === status.id),
-  })).filter((group) => group.tickets.length);
-  const message = [
-    `*Controle de OS — ${selectedDate}*`,
-    `*Período:* ${periodLabel}`,
-    "",
-    ...groups.flatMap((group) => [
-      `*${group.label} (${group.tickets.length})*`,
-      ...group.tickets.flatMap((item, index) => {
-        const ticketLine = `• ${item.number || "Sem número"} — ${item.company ? `${item.company}: ` : ""}${item.title}`;
-        const note = parseNoteEntries(item.note)
-          .map((entry) => entry.replace(/\s*\r?\n\s*/g, " "))
-          .join("\n\n");
-        const separator = index < group.tickets.length - 1 ? [""] : [];
-        return [ticketLine, ...(note ? [`  *OBS:*\n${note}`] : []), ...separator];
-      }),
-      "",
-    ]),
-  ].join("\n").trim();
-
-  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener");
-  whatsappDialog.close();
-}
-
 function render() {
   board.innerHTML = "";
   const tickets = filteredTickets();
   const isArchivedView = state.view === "archived";
+  const isDailyView = state.view === "daily";
 
   archiveViewButton.textContent = isArchivedView ? "Ver ativas" : "Ver arquivadas";
+  dailyViewButton.classList.toggle("active", isDailyView);
+  dailyViewButton.setAttribute("aria-pressed", String(isDailyView));
+  board.hidden = isDailyView;
+  dailyView.hidden = !isDailyView;
   archiveRangeButton.disabled = isArchivedView || !state.user;
   newButtons.forEach((button) => {
     button.disabled = isArchivedView || !state.user;
   });
   viewLabel.textContent = isArchivedView
     ? "Mostrando OS arquivadas. Abra uma OS para restaurar."
-    : "";
+    : isDailyView
+      ? "Registre atividades do dia sem alterar o histórico técnico das OS."
+      : "";
+
+  if (isDailyView) {
+    renderDailyView();
+    return;
+  }
 
   STATUSES.forEach((status) => {
     const column = columnTemplate.content.firstElementChild.cloneNode(true);
@@ -446,6 +506,138 @@ function render() {
     columnTickets.forEach((item) => zone.appendChild(renderTicket(item)));
     board.appendChild(column);
   });
+}
+
+function toggleDailyView() {
+  state.view = state.view === "daily" ? "active" : "daily";
+  render();
+}
+
+function changeDailyDate(dayOffset) {
+  const [year, month, day] = state.dailyDate.split("-").map(Number);
+  const date = new Date(year, month - 1, day + dayOffset, 12, 0, 0, 0);
+  state.dailyDate = toDateInputValue(date);
+  renderDailyView();
+}
+
+function renderDailyView() {
+  dailyDateInput.value = state.dailyDate;
+  dailyTitle.textContent = formatDate(`${state.dailyDate}T12:00:00`);
+  const dayEntries = getDailyEntriesFor(state.dailyEntries, state.dailyDate, state.dailyPeriod);
+  const allDayEntries = getDailyEntriesForDate(state.dailyEntries, state.dailyDate);
+  const periodLabel = state.dailyPeriod === "morning" ? "Manhã" : "Tarde/Noite";
+  dailyCount.textContent = `${dayEntries.length} atividade(s) em ${periodLabel}`;
+  dailySummaryText.textContent = allDayEntries.length
+    ? ` ${allDayEntries.length} atividade(s) registrada(s) no dia.`
+    : " Nenhuma atividade registrada neste dia.";
+  document.querySelectorAll("[data-daily-period]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.dailyPeriod === state.dailyPeriod);
+  });
+
+  const ticketOptions = state.tickets
+    .filter((ticket) => !ticket.archivedAt)
+    .sort((first, second) => String(first.number).localeCompare(String(second.number), "pt-BR"));
+  dailyTicketInput.innerHTML = "";
+  const emptyOption = document.createElement("option");
+  emptyOption.value = "";
+  emptyOption.textContent = "OS (opcional)";
+  dailyTicketInput.appendChild(emptyOption);
+  ticketOptions.forEach((ticket) => {
+    const option = document.createElement("option");
+    option.value = ticket.id;
+    option.textContent = `${ticket.number || "Sem número"}${ticket.company ? ` — ${ticket.company}` : ""}`;
+    dailyTicketInput.appendChild(option);
+  });
+
+  const enabled = Boolean(state.user);
+  [dailyTextInput, dailyCategoryInput, dailyTicketInput, dailyEntryForm.querySelector("button")]
+    .forEach((element) => { element.disabled = !enabled; });
+  dailyTextInput.placeholder = enabled ? "Ex.: EXE para teste Nunes" : "Entre com Google para registrar atividades";
+
+  dailyEntries.innerHTML = "";
+  if (!dayEntries.length) {
+    const empty = document.createElement("p");
+    empty.className = "daily-empty";
+    empty.textContent = "Nenhuma atividade registrada neste período.";
+    dailyEntries.appendChild(empty);
+  }
+  dayEntries.forEach((entry) => {
+    const item = document.createElement("article");
+    item.className = "daily-entry";
+    const time = document.createElement("time");
+    time.textContent = formatDateTime(entry.createdAt).split(" ")[1] || "";
+    const content = document.createElement("div");
+    const text = document.createElement("p");
+    text.textContent = entry.text;
+    const category = document.createElement("span");
+    category.className = "daily-category";
+    category.textContent = entry.category;
+    content.append(text, category);
+    const actions = document.createElement("div");
+    const ticket = state.tickets.find((itemTicket) => itemTicket.id === entry.ticketId);
+    if (ticket) {
+      const ticketButton = document.createElement("button");
+      ticketButton.type = "button";
+      ticketButton.className = "daily-ticket-link";
+      ticketButton.textContent = ticket.number || "Abrir OS";
+      ticketButton.addEventListener("click", () => openTicketDialog(ticket));
+      actions.appendChild(ticketButton);
+    }
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "daily-remove";
+    removeButton.textContent = "Remover";
+    removeButton.addEventListener("click", () => removeDailyEntry(entry.id));
+    actions.appendChild(removeButton);
+    item.append(time, content, actions);
+    dailyEntries.appendChild(item);
+  });
+
+  dailyLinkedTickets.innerHTML = "";
+  const linkedTickets = [...new Set(allDayEntries.map((entry) => entry.ticketId).filter(Boolean))]
+    .map((ticketId) => state.tickets.find((ticket) => ticket.id === ticketId))
+    .filter(Boolean);
+  if (!linkedTickets.length) {
+    const empty = document.createElement("p");
+    empty.className = "daily-empty";
+    empty.textContent = "Vincule uma OS à atividade para ela aparecer aqui.";
+    dailyLinkedTickets.appendChild(empty);
+  }
+  linkedTickets.forEach((ticket) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "daily-linked-ticket";
+    item.textContent = `${ticket.number || "Sem número"} — ${ticket.title || "Sem descrição"}`;
+    item.addEventListener("click", () => openTicketDialog(ticket));
+    dailyLinkedTickets.appendChild(item);
+  });
+}
+
+function addDailyEntry(event) {
+  event.preventDefault();
+  if (!state.user) return;
+  const text = dailyTextInput.value.trim();
+  if (!text) return;
+  const entry = createDailyEntry({
+    date: state.dailyDate,
+    period: state.dailyPeriod,
+    text,
+    category: dailyCategoryInput.value,
+    ticketId: dailyTicketInput.value,
+  });
+  state.dailyEntries.unshift(entry);
+  saveTickets(DAILY_STORAGE_KEY, state.dailyEntries);
+  saveDailyEntryToFirestore(entry);
+  dailyEntryForm.reset();
+  renderDailyView();
+  dailyTextInput.focus();
+}
+
+function removeDailyEntry(entryId) {
+  state.dailyEntries = state.dailyEntries.filter((entry) => entry.id !== entryId);
+  saveTickets(DAILY_STORAGE_KEY, state.dailyEntries);
+  deleteDailyEntryFromFirestore(entryId);
+  renderDailyView();
 }
 
 function filteredTickets() {
@@ -772,7 +964,7 @@ function archiveSelectedRange() {
 }
 
 function exportText() {
-  const content = `CONTROLE-OS-TXT-V1\n${JSON.stringify({ tickets: state.tickets }, null, 2)}`;
+  const content = `CONTROLE-OS-TXT-V1\n${JSON.stringify({ tickets: state.tickets, dailyEntries: state.dailyEntries }, null, 2)}`;
 
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const link = document.createElement("a");
@@ -788,16 +980,33 @@ function exportText() {
 function importTickets(event) {
   event.preventDefault();
   const imported = parseText(importText.value);
-  if (!imported.length) {
-    alert("Nenhuma OS foi identificada no texto importado.");
+  const importedDailyEntries = parseDailyEntriesFromBackup(importText.value);
+  if (!imported.length && !importedDailyEntries.length) {
+    alert("Nenhuma OS ou atividade do Diário foi identificada no texto importado.");
     return;
   }
 
   state.tickets = [...imported, ...state.tickets];
+  if (importedDailyEntries.length) {
+    state.dailyEntries = [...importedDailyEntries, ...state.dailyEntries];
+    saveTickets(DAILY_STORAGE_KEY, state.dailyEntries);
+    importedDailyEntries.forEach(saveDailyEntryToFirestore);
+  }
   saveAll();
   importText.value = "";
   importDialog.close();
   render();
+}
+
+function parseDailyEntriesFromBackup(text) {
+  const source = String(text || "").trim();
+  if (!source.startsWith("CONTROLE-OS-TXT-V1")) return [];
+  try {
+    const data = JSON.parse(source.replace(/^CONTROLE-OS-TXT-V1\s*/, ""));
+    return Array.isArray(data.dailyEntries) ? data.dailyEntries.map(normalizeDailyEntry) : [];
+  } catch {
+    return [];
+  }
 }
 
 function parseText(text) {
@@ -1093,4 +1302,83 @@ function setupTheme() {
 function toggleTheme() {
   document.body.classList.toggle("dark");
   localStorage.setItem(THEME_KEY, document.body.classList.contains("dark") ? "dark" : "light");
+}
+
+function updateWhatsappSelection() {
+  document.querySelectorAll("[data-whatsapp-period]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.whatsappPeriod === whatsappPeriod);
+  });
+  const isCustomPeriod = whatsappPeriod === "custom";
+  whatsappSingleDateField.hidden = isCustomPeriod;
+  whatsappCustomDates.hidden = !isCustomPeriod;
+  const availableTickets = getWhatsappTicketsForStatuses(STATUSES.map((status) => status.id));
+  STATUSES.forEach((status) => {
+    const count = availableTickets.filter((item) => item.status === status.id).length;
+    const label = whatsappStatusOptions.querySelector(`[data-whatsapp-status-label="${status.id}"]`);
+    if (label) label.textContent = `${status.label} (${count})`;
+  });
+  const ticketCount = getWhatsappTickets().length;
+  const dailyCount = getWhatsappDailyEntries().length;
+  const dailyInfo = whatsappIncludeDailyInput.checked ? ` e ${dailyCount} atividade(s) do Diário` : "";
+  whatsappSelectionInfo.textContent = `${ticketCount} OS será(ão) enviada(s)${dailyInfo}.`;
+}
+
+function getWhatsappDailyEntries() {
+  if (!whatsappIncludeDailyInput.checked) return [];
+  const dateFrom = whatsappPeriod === "custom" ? whatsappDateFromInput.value : whatsappDateInput.value;
+  const dateTo = whatsappPeriod === "custom" ? whatsappDateToInput.value : whatsappDateInput.value;
+  if (!dateFrom || !dateTo || dateFrom > dateTo) return [];
+
+  const period = whatsappPeriod === "morning" || whatsappPeriod === "afternoon" ? whatsappPeriod : "";
+  return getDailyEntriesInRange(state.dailyEntries, dateFrom, dateTo, period);
+}
+
+function sendWhatsappSummary(event) {
+  event.preventDefault();
+  const tickets = getWhatsappTickets();
+  const dailyItems = getWhatsappDailyEntries();
+  if (!tickets.length && !dailyItems.length) {
+    alert("Nenhuma OS ou atividade do Diário foi encontrada para o período selecionado.");
+    return;
+  }
+
+  const selectedDate = whatsappPeriod === "custom"
+    ? `${formatDate(`${whatsappDateFromInput.value}T12:00:00`)} a ${formatDate(`${whatsappDateToInput.value}T12:00:00`)}`
+    : formatDate(`${whatsappDateInput.value}T12:00:00`);
+  const periodLabel = { today: "Hoje", morning: "Manhã (até 12h)", afternoon: "Tarde/Noite", custom: "Personalizado" }[whatsappPeriod];
+  const groups = STATUSES.map((status) => ({
+    ...status,
+    tickets: tickets.filter((item) => item.status === status.id),
+  })).filter((group) => group.tickets.length);
+  const ticketMessage = groups.flatMap((group) => [
+    `*${group.label} (${group.tickets.length})*`,
+    ...group.tickets.flatMap((item, index) => {
+      const ticketLine = `• ${item.number || "Sem número"} — ${item.company ? `${item.company}: ` : ""}${item.title}`;
+      const note = parseNoteEntries(item.note)
+        .map((entry) => entry.replace(/\s*\r?\n\s*/g, " "))
+        .join("\n\n");
+      const separator = index < group.tickets.length - 1 ? [""] : [];
+      return [ticketLine, ...(note ? [`  *OBS:*\n${note}`] : []), ...separator];
+    }),
+    "",
+  ]);
+  const dailyMessage = dailyItems.length ? [
+    "*Atividades do Diário*",
+    ...dailyItems.flatMap((entry) => {
+      const ticket = state.tickets.find((item) => item.id === entry.ticketId);
+      const linkedTicket = ticket ? ` — OS ${ticket.number || "sem número"}` : "";
+      return [`• ${formatDateTime(entry.createdAt).split(" ")[1]} — ${entry.text}${linkedTicket}`, `  _${entry.category}_`];
+    }),
+  ] : [];
+  const message = [
+    `*Controle de OS — ${selectedDate}*`,
+    `*Período:* ${periodLabel}`,
+    "",
+    ...ticketMessage,
+    ...(ticketMessage.length && dailyMessage.length ? [""] : []),
+    ...dailyMessage,
+  ].join("\n").trim();
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener");
+  whatsappDialog.close();
 }

@@ -200,6 +200,206 @@ main {
   font-size: 13px;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+#dailyViewButton.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.daily-view {
+  display: grid;
+  gap: 16px;
+}
+
+.daily-toolbar,
+.daily-date-controls,
+.daily-panel-head,
+.daily-periods,
+.daily-summary {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.daily-toolbar,
+.daily-panel-head,
+.daily-summary {
+  justify-content: space-between;
+}
+
+.daily-date-controls label {
+  min-width: 154px;
+}
+
+.daily-date-controls button {
+  min-width: 38px;
+}
+
+.daily-count {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.daily-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 0.32fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.daily-panel {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 16px;
+}
+
+.daily-panel h2 {
+  font-size: 17px;
+}
+
+.daily-periods button.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.daily-entry-form {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) 140px minmax(150px, 0.72fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.daily-entry-form input,
+.daily-entry-form select,
+.daily-entry-form button {
+  min-height: 42px;
+}
+
+.daily-entries,
+.daily-linked-tickets {
+  display: grid;
+  gap: 0;
+}
+
+.daily-entry {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  border-top: 1px solid var(--line);
+  padding: 13px 0;
+}
+
+.daily-entry time {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  padding-top: 2px;
+}
+
+.daily-entry p {
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.daily-category {
+  display: inline-block;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 13%, var(--panel));
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 7px;
+}
+
+.daily-entry > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 6px;
+}
+
+.daily-entry button,
+.daily-linked-ticket {
+  min-height: 28px;
+  font-size: 12px;
+  padding: 0 8px;
+}
+
+.daily-ticket-link {
+  color: var(--accent-strong);
+}
+
+.daily-remove {
+  color: var(--danger);
+}
+
+.daily-empty {
+  border: 1px dashed var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 12px;
+}
+
+.daily-linked-ticket {
+  width: 100%;
+  min-height: 48px;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+.daily-summary {
+  align-items: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+  padding: 14px 16px;
+}
+
+.daily-summary p {
+  display: grid;
+  gap: 4px;
+}
+
+.daily-summary span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.whatsapp-daily-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.whatsapp-daily-option input {
+  width: auto;
+  accent-color: var(--accent);
+}
+
 label {
   display: grid;
   gap: 6px;
@@ -669,8 +869,31 @@ dialog::backdrop {
   .note-add,
   .status-options,
   .whatsapp-custom-dates,
-  .whatsapp-periods {
+  .whatsapp-periods,
+  .daily-layout,
+  .daily-entry-form {
     grid-template-columns: 1fr;
+  }
+
+  .daily-toolbar,
+  .daily-date-controls,
+  .daily-panel-head,
+  .daily-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .daily-date-controls label {
+    min-width: 0;
+  }
+
+  .daily-entry {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .daily-entry > div:last-child {
+    grid-column: 2;
+    justify-content: start;
   }
 
   .toolbar {

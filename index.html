@@ -23,6 +23,7 @@
       <div class="actions">
         <button class="icon-button" id="themeButton" type="button" title="Alternar tema" aria-label="Alternar tema">◐</button>
         <button id="headerNewButton" class="primary" type="button">Adicionar OS</button>
+        <button id="dailyViewButton" type="button">Diário</button>
         <button id="archiveViewButton" type="button">Ver arquivadas</button>
         <button id="exportButton" class="file-action" type="button" title="Exportar TXT" aria-label="Exportar TXT">
           <span class="button-icon" aria-hidden="true">&#8595;</span><span class="button-label">Exportar TXT</span>
@@ -54,6 +55,37 @@
       <p class="sync-status" id="syncStatus"></p>
 
       <section class="board" id="board" aria-label="Quadro Kanban"></section>
+      <section class="daily-view" id="dailyView" aria-label="Diário de atividades" hidden>
+        <div class="daily-toolbar">
+          <div class="daily-date-controls">
+            <button id="dailyPreviousButton" type="button" aria-label="Dia anterior">&lsaquo;</button>
+            <label><span>Data</span><input id="dailyDateInput" type="date"></label>
+            <button id="dailyNextButton" type="button" aria-label="Próximo dia">&rsaquo;</button>
+            <button id="dailyTodayButton" type="button">Hoje</button>
+          </div>
+          <p id="dailyCount" class="daily-count"></p>
+        </div>
+        <div class="daily-layout">
+          <section class="daily-panel">
+            <div class="daily-panel-head">
+              <h2 id="dailyTitle"></h2>
+              <div class="daily-periods" role="group" aria-label="Período">
+                <button type="button" data-daily-period="morning">Manhã</button>
+                <button type="button" data-daily-period="afternoon">Tarde/Noite</button>
+              </div>
+            </div>
+            <form id="dailyEntryForm" class="daily-entry-form">
+              <label class="daily-text-field"><span class="sr-only">Atividade</span><input id="dailyTextInput" required placeholder="Ex.: EXE para teste Nunes"></label>
+              <label><span class="sr-only">Categoria</span><select id="dailyCategoryInput"><option>Atividade</option><option>Call</option><option>Cliente remoto</option><option>EXE / Versão</option><option>Teste</option><option>Impressora</option><option>Análise</option></select></label>
+              <label><span class="sr-only">OS vinculada</span><select id="dailyTicketInput"><option value="">OS (opcional)</option></select></label>
+              <button class="primary" type="submit">Adicionar</button>
+            </form>
+            <div id="dailyEntries" class="daily-entries"></div>
+          </section>
+          <aside class="daily-panel daily-linked-panel"><div class="daily-panel-head"><h2>OS citadas no dia</h2></div><div id="dailyLinkedTickets" class="daily-linked-tickets"></div></aside>
+        </div>
+        <section class="daily-summary"><p><strong>Resumo do dia</strong><span id="dailySummaryText"></span></p><button id="dailyWhatsappButton" class="primary" type="button">Enviar resumo no WhatsApp</button></section>
+      </section>
     </main>
 
     <dialog id="ticketDialog">
@@ -169,6 +201,7 @@
           <button class="icon-button" data-close="whatsappDialog" type="button" aria-label="Fechar">&times;</button>
         </div>
         <p class="whatsapp-help">Marque os status que deseja enviar e escolha o período pela data da última atualização do status.</p>
+        <label class="whatsapp-daily-option"><input id="whatsappIncludeDailyInput" type="checkbox" checked> Incluir atividades do Diário</label>
         <fieldset class="status-selector">
           <legend>Status para enviar</legend>
           <div id="whatsappStatusOptions" class="status-options"></div>
