@@ -750,7 +750,7 @@ function openTicketDialog(item = null) {
 
 function saveTicket(event) {
   event.preventDefault();
-  const id = document.querySelector("#ticketId").value;
+  const id = document.querySelector("#ticketId").value || crypto.randomUUID();
   const previous = id ? state.tickets.find((item) => item.id === id) : null;
   const selectedStatus = document.querySelector("#statusInput").value;
   const statusDateInput = document.querySelector("#statusUpdatedAtInput").value;
