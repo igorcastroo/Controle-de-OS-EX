@@ -731,7 +731,9 @@ function openTicketDialog(item = null) {
   deleteButton.hidden = !item;
   archiveTicketButton.hidden = !item;
   archiveTicketButton.textContent = item?.archivedAt ? "Restaurar" : "Arquivar";
-  document.querySelector("#ticketId").value = item?.id || "";
+  // A OS nova ja recebe um id para que uma observacao enviada ao Diario
+  // possa ficar vinculada a ela antes do salvamento do formulario.
+  document.querySelector("#ticketId").value = item?.id || crypto.randomUUID();
   document.querySelector("#numberInput").value = item?.number || "";
   document.querySelector("#companyCodeInput").value = item?.companyCode || "";
   document.querySelector("#companyInput").value = item?.company || "";
@@ -803,6 +805,31 @@ function addTimestampedNote() {
   noteEntryInput.value = "";
   renderDialogNotes();
   noteEntryInput.focus();
+
+  if (confirm("Deseja adicionar esta observacao ao Diario?")) {
+    addNoteToDaily(text);
+  }
+}
+
+function addNoteToDaily(text) {
+  if (!state.user) {
+    alert("Entre com Google para adicionar a observacao ao Diario.");
+    return;
+  }
+
+  const now = new Date();
+  const entry = createDailyEntry({
+    date: toDateInputValue(now),
+    period: now.getHours() < 12 ? "morning" : "afternoon",
+    text,
+    category: "Atividade",
+    ticketId: document.querySelector("#ticketId").value,
+  });
+  state.dailyEntries.unshift(entry);
+  saveTickets(DAILY_STORAGE_KEY, state.dailyEntries);
+  saveDailyEntryToFirestore(entry);
+
+  if (hasDailyView) renderDailyView();
 }
 
 function renderDialogNotes() {
