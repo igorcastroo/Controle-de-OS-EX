@@ -779,14 +779,14 @@ function saveTicket(event) {
     updatedAt: new Date().toISOString(),
   };
 
-  if (id) {
+  // O dialogo gera o ID antes da OS ser salva para permitir que notas do
+  // Diario sejam vinculadas a ela. Portanto, a existencia do ID nao indica
+  // que a OS ja esteja na lista: use o registro anterior como referencia.
+  if (previous) {
     const index = state.tickets.findIndex((item) => item.id === id);
-    state.tickets[index] = { ...state.tickets[index], ...data };
+    state.tickets[index] = { ...previous, ...data };
   } else {
-    state.tickets.unshift({
-      id: crypto.randomUUID(),
-      ...data,
-    });
+    state.tickets.unshift({ id, ...data });
   }
 
   saveAll();
