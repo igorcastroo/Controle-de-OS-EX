@@ -223,6 +223,10 @@ main {
   gap: 16px;
 }
 
+.daily-view[hidden] {
+  display: none;
+}
+
 .daily-toolbar,
 .daily-date-controls,
 .daily-panel-head,

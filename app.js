@@ -427,23 +427,6 @@ function openWhatsappDialog() {
   whatsappDialog.showModal();
 }
 
-function updateWhatsappSelection() {
-  document.querySelectorAll("[data-whatsapp-period]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.whatsappPeriod === whatsappPeriod);
-  });
-  const isCustomPeriod = whatsappPeriod === "custom";
-  whatsappSingleDateField.hidden = isCustomPeriod;
-  whatsappCustomDates.hidden = !isCustomPeriod;
-  const availableTickets = getWhatsappTicketsForStatuses(STATUSES.map((status) => status.id));
-  STATUSES.forEach((status) => {
-    const count = availableTickets.filter((item) => item.status === status.id).length;
-    const label = whatsappStatusOptions.querySelector(`[data-whatsapp-status-label="${status.id}"]`);
-    if (label) label.textContent = `${status.label} (${count})`;
-  });
-  const count = getWhatsappTickets().length;
-  whatsappSelectionInfo.textContent = `${count} OS sera(ão) enviada(s).`;
-}
-
 function getWhatsappTickets() {
   const selectedStatuses = [...whatsappStatusOptions.querySelectorAll("input:checked")]
     .map((input) => input.value);
