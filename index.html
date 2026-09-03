@@ -77,7 +77,7 @@
             <form id="dailyEntryForm" class="daily-entry-form">
               <label class="daily-text-field"><span class="sr-only">Atividade</span><textarea id="dailyTextInput" rows="5" required placeholder="Descreva as atividades realizadas no período..."></textarea></label>
               <label><span class="sr-only">Categoria</span><select id="dailyCategoryInput"><option>Atividade</option><option>Call</option><option>Cliente remoto</option><option>EXE / Versão</option><option>Teste</option><option>Impressora</option><option>Análise</option></select></label>
-              <label><span class="sr-only">OS vinculada</span><select id="dailyTicketInput"><option value="">OS (opcional)</option></select></label>
+              <label class="daily-ticket-field"><span class="sr-only">OS vinculada</span><input id="dailyTicketInput" type="search" autocomplete="off" placeholder="OS ou assunto (opcional)" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="dailyTicketOptions"><input id="dailyTicketIdInput" type="hidden"><div id="dailyTicketOptions" class="daily-ticket-options" role="listbox" hidden></div></label>
               <button class="primary" type="submit">Adicionar</button>
             </form>
             <div id="dailyEntries" class="daily-entries"></div>

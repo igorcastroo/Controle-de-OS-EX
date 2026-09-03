@@ -79,6 +79,8 @@ const dailyEntryForm = document.querySelector("#dailyEntryForm");
 const dailyTextInput = document.querySelector("#dailyTextInput");
 const dailyCategoryInput = document.querySelector("#dailyCategoryInput");
 const dailyTicketInput = document.querySelector("#dailyTicketInput");
+const dailyTicketIdInput = document.querySelector("#dailyTicketIdInput");
+const dailyTicketOptions = document.querySelector("#dailyTicketOptions");
 const dailyEntries = document.querySelector("#dailyEntries");
 const dailyLinkedTickets = document.querySelector("#dailyLinkedTickets");
 const dailySummaryText = document.querySelector("#dailySummaryText");
@@ -121,6 +123,8 @@ const hasDailyView = [
   dailyTextInput,
   dailyCategoryInput,
   dailyTicketInput,
+  dailyTicketIdInput,
+  dailyTicketOptions,
   dailyEntries,
   dailyLinkedTickets,
   dailySummaryText,
@@ -183,6 +187,17 @@ if (hasDailyView) {
     });
   });
   dailyEntryForm.addEventListener("submit", addDailyEntry);
+  dailyTicketInput.addEventListener("input", () => {
+    dailyTicketIdInput.value = "";
+    renderDailyTicketOptions();
+  });
+  dailyTicketInput.addEventListener("focus", renderDailyTicketOptions);
+  dailyTicketInput.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") hideDailyTicketOptions();
+  });
+  dailyTicketInput.addEventListener("blur", () => {
+    window.setTimeout(hideDailyTicketOptions, 120);
+  });
   dailyWhatsappButton.addEventListener("click", () => {
     openWhatsappDialog();
     whatsappDateInput.value = state.dailyDate;
@@ -538,24 +553,10 @@ function renderDailyView() {
     button.classList.toggle("active", button.dataset.dailyPeriod === state.dailyPeriod);
   });
 
-  const ticketOptions = state.tickets
-    .filter((ticket) => !ticket.archivedAt)
-    .sort((first, second) => String(first.number).localeCompare(String(second.number), "pt-BR"));
-  dailyTicketInput.innerHTML = "";
-  const emptyOption = document.createElement("option");
-  emptyOption.value = "";
-  emptyOption.textContent = "OS (opcional)";
-  dailyTicketInput.appendChild(emptyOption);
-  ticketOptions.forEach((ticket) => {
-    const option = document.createElement("option");
-    option.value = ticket.id;
-    option.textContent = `${ticket.number || "Sem número"}${ticket.company ? ` — ${ticket.company}` : ""}`;
-    dailyTicketInput.appendChild(option);
-  });
-
   const enabled = Boolean(state.user);
   [dailyTextInput, dailyCategoryInput, dailyTicketInput, dailyEntryForm.querySelector("button")]
     .forEach((element) => { element.disabled = !enabled; });
+  if (!enabled) hideDailyTicketOptions();
   dailyTextInput.placeholder = enabled
     ? "Descreva as atividades realizadas no período..."
     : "Entre com Google para registrar atividades";
@@ -619,6 +620,76 @@ function renderDailyView() {
   });
 }
 
+function getDailyTicketOptions() {
+  return state.tickets
+    .filter((ticket) => !ticket.archivedAt)
+    .sort((first, second) => String(first.number).localeCompare(String(second.number), "pt-BR"));
+}
+
+function normalizeSearchValue(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function renderDailyTicketOptions() {
+  if (!hasDailyView || dailyTicketInput.disabled) return;
+
+  const query = normalizeSearchValue(dailyTicketInput.value);
+  const tickets = getDailyTicketOptions().filter((ticket) => {
+    const searchableText = normalizeSearchValue([
+      ticket.number,
+      ticket.title,
+      ticket.company,
+      ticket.companyCode,
+    ].join(" "));
+    return !query || searchableText.includes(query);
+  });
+
+  dailyTicketOptions.innerHTML = "";
+  if (!tickets.length) {
+    const empty = document.createElement("span");
+    empty.className = "daily-ticket-no-results";
+    empty.textContent = query ? "Nenhuma OS encontrada." : "Nenhuma OS ativa.";
+    dailyTicketOptions.appendChild(empty);
+  }
+
+  tickets.forEach((ticket) => {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "daily-ticket-option";
+    option.setAttribute("role", "option");
+
+    const number = document.createElement("strong");
+    number.textContent = ticket.number || "Sem número";
+    const subject = document.createElement("small");
+    subject.textContent = ticket.title || ticket.company || "Sem assunto";
+    option.append(number, subject);
+    option.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      selectDailyTicket(ticket);
+    });
+    dailyTicketOptions.appendChild(option);
+  });
+
+  dailyTicketOptions.hidden = false;
+  dailyTicketInput.setAttribute("aria-expanded", "true");
+}
+
+function selectDailyTicket(ticket) {
+  dailyTicketIdInput.value = ticket.id;
+  dailyTicketInput.value = `${ticket.number || "Sem número"} — ${ticket.title || ticket.company || "Sem assunto"}`;
+  hideDailyTicketOptions();
+}
+
+function hideDailyTicketOptions() {
+  if (!dailyTicketOptions) return;
+  dailyTicketOptions.hidden = true;
+  dailyTicketInput?.setAttribute("aria-expanded", "false");
+}
+
 function addDailyEntry(event) {
   event.preventDefault();
   if (!state.user) return;
@@ -635,6 +706,7 @@ function addDailyEntry(event) {
   saveTickets(DAILY_STORAGE_KEY, state.dailyEntries);
   saveDailyEntryToFirestore(entry);
   dailyEntryForm.reset();
+  dailyTicketIdInput.value = "";
   renderDailyView();
   dailyTextInput.focus();
 }
