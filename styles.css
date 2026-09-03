@@ -300,7 +300,7 @@ main {
 
 .daily-memo-controls {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) auto auto;
+  grid-template-columns: minmax(180px, 1fr) 140px auto auto;
   grid-column: 1 / -1;
   gap: 8px;
   align-items: end;
@@ -323,7 +323,16 @@ main {
   padding: 0 9px;
 }
 
+.daily-memo-status {
+  align-self: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .daily-entry-form input,
+.daily-entry-form select,
 .daily-entry-form button {
   min-height: 42px;
 }
