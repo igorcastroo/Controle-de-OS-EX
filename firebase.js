@@ -61,7 +61,3 @@ export function observarDiario(userId, aoAtualizar, aoDarErro) {
 export function salvarRegistroDiario(userId, entry) {
   return setDoc(doc(firestore, "users", userId, "dailyEntries", entry.id), entry);
 }
-
-export function excluirRegistroDiario(userId, entryId) {
-  return deleteDoc(doc(firestore, "users", userId, "dailyEntries", entryId));
-}

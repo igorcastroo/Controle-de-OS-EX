@@ -298,7 +298,31 @@ main {
   min-height: 118px;
 }
 
-.daily-entry-form select,
+.daily-memo-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  grid-column: 1 / -1;
+  gap: 8px;
+  align-items: end;
+}
+
+.daily-memo-tickets {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.daily-memo-ticket {
+  min-height: 30px;
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 9px;
+}
+
 .daily-entry-form input,
 .daily-entry-form button {
   min-height: 42px;
@@ -356,64 +380,14 @@ main {
   padding: 10px 11px;
 }
 
-.daily-entries,
 .daily-linked-tickets {
   display: grid;
   gap: 0;
 }
-
-.daily-entry {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: start;
-  border-top: 1px solid var(--line);
-  padding: 13px 0;
-}
-
-.daily-entry time {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  padding-top: 2px;
-}
-
-.daily-entry p {
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-}
-
-.daily-category {
-  display: inline-block;
-  margin-top: 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 13%, var(--panel));
-  color: var(--accent-strong);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 7px;
-}
-
-.daily-entry > div:last-child {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: end;
-  gap: 6px;
-}
-
-.daily-entry button,
 .daily-linked-ticket {
   min-height: 28px;
   font-size: 12px;
   padding: 0 8px;
-}
-
-.daily-ticket-link {
-  color: var(--accent-strong);
-}
-
-.daily-remove {
-  color: var(--danger);
 }
 
 .daily-empty {
@@ -940,6 +914,10 @@ dialog::backdrop {
     grid-template-columns: 1fr;
   }
 
+  .daily-memo-controls {
+    grid-template-columns: 1fr;
+  }
+
   .daily-toolbar,
   .daily-date-controls,
   .daily-panel-head,
@@ -950,15 +928,6 @@ dialog::backdrop {
 
   .daily-date-controls label {
     min-width: 0;
-  }
-
-  .daily-entry {
-    grid-template-columns: 48px minmax(0, 1fr);
-  }
-
-  .daily-entry > div:last-child {
-    grid-column: 2;
-    justify-content: start;
   }
 
   .toolbar {

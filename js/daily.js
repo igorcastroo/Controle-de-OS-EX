@@ -18,6 +18,11 @@ export function normalizeDailyEntry(entry) {
     text: String(entry.text || "").trim(),
     category: String(entry.category || "Atividade").trim() || "Atividade",
     ticketId: String(entry.ticketId || ""),
+    ticketIds: [...new Set([
+      ...(Array.isArray(entry.ticketIds) ? entry.ticketIds : []),
+      entry.ticketId,
+    ].map((ticketId) => String(ticketId || "").trim()).filter(Boolean))],
+    type: entry.type === "memo" ? "memo" : "activity",
     createdAt,
     updatedAt: entry.updatedAt || createdAt,
   };

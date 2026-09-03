@@ -75,12 +75,10 @@
               </div>
             </div>
             <form id="dailyEntryForm" class="daily-entry-form">
-              <label class="daily-text-field"><span class="sr-only">Atividade</span><textarea id="dailyTextInput" rows="5" required placeholder="Descreva as atividades realizadas no período..."></textarea></label>
-              <label><span class="sr-only">Categoria</span><select id="dailyCategoryInput"><option>Atividade</option><option>Call</option><option>Cliente remoto</option><option>EXE / Versão</option><option>Teste</option><option>Impressora</option><option>Análise</option></select></label>
-              <label class="daily-ticket-field"><span class="sr-only">OS vinculada</span><input id="dailyTicketInput" type="search" autocomplete="off" placeholder="OS ou assunto (opcional)" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="dailyTicketOptions"><input id="dailyTicketIdInput" type="hidden"><div id="dailyTicketOptions" class="daily-ticket-options" role="listbox" hidden></div></label>
-              <button class="primary" type="submit">Adicionar</button>
+              <label class="daily-text-field"><span>Memo</span><textarea id="dailyTextInput" rows="12" placeholder="Escreva as atividades, observações e próximos passos do período..."></textarea></label>
+              <div class="daily-memo-controls"><label class="daily-ticket-field"><span class="sr-only">OS vinculada</span><input id="dailyTicketInput" type="search" autocomplete="off" placeholder="OS ou assunto para vincular" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="dailyTicketOptions"><input id="dailyTicketIdInput" type="hidden"><div id="dailyTicketOptions" class="daily-ticket-options" role="listbox" hidden></div></label><button id="dailyLinkTicketButton" type="button">Vincular OS</button><button class="primary" type="submit">Salvar memo</button></div>
+              <div id="dailyMemoTickets" class="daily-memo-tickets" aria-label="OS vinculadas ao memo"></div>
             </form>
-            <div id="dailyEntries" class="daily-entries"></div>
           </section>
           <aside class="daily-panel daily-linked-panel"><div class="daily-panel-head"><h2>OS citadas no dia</h2></div><div id="dailyLinkedTickets" class="daily-linked-tickets"></div></aside>
         </div>
