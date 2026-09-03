@@ -1548,7 +1548,12 @@ function getWhatsappDailyEntries() {
   if (!dateFrom || !dateTo || dateFrom > dateTo) return [];
 
   const period = whatsappPeriod === "morning" || whatsappPeriod === "afternoon" ? whatsappPeriod : "";
-  const entries = getDailyEntriesInRange(state.dailyEntries, dateFrom, dateTo, period);
+  const entriesForPeriod = getDailyEntriesInRange(state.dailyEntries, dateFrom, dateTo, period);
+  // O Diário é uma anotação do dia: se não houve registro no período escolhido,
+  // ainda envie o memo existente daquela data em vez de bloquear o resumo.
+  const entries = entriesForPeriod.length
+    ? entriesForPeriod
+    : getDailyEntriesInRange(state.dailyEntries, dateFrom, dateTo);
   return entries.filter((entry) => (
     entry.type === "memo" || !entries.some((item) => (
       item.type === "memo" && item.date === entry.date && item.period === entry.period
