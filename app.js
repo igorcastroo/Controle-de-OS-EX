@@ -975,8 +975,19 @@ function addTimestampedNote() {
   noteEntryInput.focus();
 
   if (confirm("Deseja adicionar esta observacao ao Diario?")) {
-    addNoteToDaily(text);
+    void addNoteToDaily(text);
   }
+}
+
+function formatNoteForDaily(text) {
+  const ticketDetails = [
+    document.querySelector("#numberInput").value.trim(),
+    document.querySelector("#companyInput").value.trim(),
+    document.querySelector("#companyCodeInput").value.trim(),
+    text,
+  ].filter(Boolean);
+
+  return ticketDetails.join(" - ");
 }
 
 async function addNoteToDaily(text) {
@@ -989,12 +1000,13 @@ async function addNoteToDaily(text) {
   const date = toDateInputValue(now);
   const period = now.getHours() < 12 ? "morning" : "afternoon";
   const ticketId = document.querySelector("#ticketId").value;
+  const dailyText = formatNoteForDaily(text);
   const previous = getDailyMemo(date, period);
   const ticketIds = [...new Set([...getEntryTicketIds(previous), ticketId].filter(Boolean))];
   const entry = previous
     ? normalizeDailyEntry({
       ...previous,
-      text: previous.text ? `${previous.text}\n\n${text}` : text,
+      text: previous.text ? `${previous.text}\n\n${dailyText}` : dailyText,
       ticketId: ticketIds[0] || "",
       ticketIds,
       updatedAt: new Date().toISOString(),
@@ -1002,7 +1014,7 @@ async function addNoteToDaily(text) {
     : createDailyEntry({
       date,
       period,
-      text,
+      text: dailyText,
       category: "Anotações",
       type: "memo",
       ticketId: ticketIds[0] || "",
