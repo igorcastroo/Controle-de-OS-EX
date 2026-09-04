@@ -555,7 +555,7 @@ function renderDailyView() {
   const memoKey = `${state.dailyDate}:${state.dailyPeriod}`;
   const periodLabel = state.dailyPeriod === "morning" ? "Manhã" : "Tarde/Noite";
   dailyCount.textContent = memo
-    ? `Memo em ${periodLabel}`
+    ? `Anotações em ${periodLabel}`
     : `${dayEntries.length} atividade(s) em ${periodLabel}`;
   dailySummaryText.textContent = allDayEntries.length
     ? ` ${allDayEntries.length} atividade(s) registrada(s) no dia.`
@@ -575,7 +575,7 @@ function renderDailyView() {
   if (!enabled) hideDailyTicketOptions();
   dailyTextInput.placeholder = enabled
     ? "Escreva as atividades, observações e próximos passos do período..."
-    : "Entre com Google para editar o memo";
+    : "Entre com Google para editar as anotações";
 
   if (state.dailyMemoKey !== memoKey || document.activeElement !== dailyTextInput) {
     state.dailyMemoKey = memoKey;
@@ -796,7 +796,7 @@ async function saveDailyMemo({ date, period, text, ticketIds }) {
       date,
       period,
       text,
-      category: "Memo",
+      category: "Anotações",
       type: "memo",
       ticketId: ticketIds[0] || "",
       ticketIds,
@@ -979,7 +979,7 @@ function addTimestampedNote() {
   }
 }
 
-function addNoteToDaily(text) {
+async function addNoteToDaily(text) {
   if (!state.user) {
     alert("Entre com Google para adicionar a observacao ao Diario.");
     return;
@@ -1003,7 +1003,7 @@ function addNoteToDaily(text) {
       date,
       period,
       text,
-      category: "Memo",
+      category: "Anotações",
       type: "memo",
       ticketId: ticketIds[0] || "",
       ticketIds,
@@ -1014,7 +1014,19 @@ function addNoteToDaily(text) {
     state.dailyEntries.unshift(entry);
   }
   saveTickets(DAILY_STORAGE_KEY, state.dailyEntries);
-  saveDailyEntryToFirestore(entry);
+  const saved = await saveDailyEntryToFirestore(entry);
+
+  // Uma atualização do Firestore pode chegar antes da confirmação do setDoc.
+  // Reaplica o registro confirmado para que a anotação vinda da OS não suma do Diário.
+  if (saved) {
+    const index = state.dailyEntries.findIndex((item) => item.id === entry.id);
+    if (index === -1) state.dailyEntries.unshift(entry);
+    else state.dailyEntries[index] = entry;
+    saveTickets(DAILY_STORAGE_KEY, state.dailyEntries);
+    syncStatus.textContent = "Observação adicionada ao Diário.";
+  } else {
+    alert("Não foi possível salvar a observação no Diário. Tente novamente.");
+  }
 
   if (hasDailyView) renderDailyView();
 }

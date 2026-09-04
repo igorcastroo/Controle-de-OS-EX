@@ -11,12 +11,14 @@ function toDateInputValue(value) {
 
 export function normalizeDailyEntry(entry) {
   const createdAt = entry.createdAt || entry.updatedAt || new Date().toISOString();
+  const category = String(entry.category || "Atividade").trim() || "Atividade";
   return {
     id: entry.id || crypto.randomUUID(),
     date: /^\d{4}-\d{2}-\d{2}$/.test(entry.date || "") ? entry.date : toDateInputValue(createdAt),
     period: entry.period === "morning" ? "morning" : "afternoon",
     text: String(entry.text || "").trim(),
-    category: String(entry.category || "Atividade").trim() || "Atividade",
+    // Mantém os registros antigos compatíveis, sem expor o antigo nome "Memo".
+    category: category.toLowerCase() === "memo" ? "Anotações" : category,
     ticketId: String(entry.ticketId || ""),
     ticketIds: [...new Set([
       ...(Array.isArray(entry.ticketIds) ? entry.ticketIds : []),

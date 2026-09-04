@@ -75,9 +75,9 @@
               </div>
             </div>
             <form id="dailyEntryForm" class="daily-entry-form">
-              <label class="daily-text-field"><span>Memo</span><textarea id="dailyTextInput" rows="12" placeholder="Escreva as atividades, observações e próximos passos do período..."></textarea></label>
+              <label class="daily-text-field"><span>Anotações</span><textarea id="dailyTextInput" rows="12" placeholder="Escreva as atividades, observações e próximos passos do período..."></textarea></label>
               <div class="daily-memo-controls"><label class="daily-ticket-field"><span class="sr-only">OS vinculada</span><input id="dailyTicketInput" type="search" autocomplete="off" placeholder="OS ou assunto para adicionar" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="dailyTicketOptions"><input id="dailyTicketIdInput" type="hidden"><div id="dailyTicketOptions" class="daily-ticket-options" role="listbox" hidden></div></label><label><span class="sr-only">Formato da anotação</span><select id="dailyFormatInput"><option value="atendimento">Atendimento</option><option value="call">Call</option><option value="teste">Teste</option><option value="erro">Erro</option><option value="pendencia">Pendência</option></select></label><button id="dailyLinkTicketButton" type="button">Adicionar OS</button><span id="dailyMemoStatus" class="daily-memo-status" aria-live="polite">Salva automaticamente</span></div>
-              <div id="dailyMemoTickets" class="daily-memo-tickets" aria-label="OS vinculadas ao memo"></div>
+              <div id="dailyMemoTickets" class="daily-memo-tickets" aria-label="OS vinculadas às anotações"></div>
             </form>
           </section>
           <aside class="daily-panel daily-linked-panel"><div class="daily-panel-head"><h2>OS citadas no dia</h2></div><div id="dailyLinkedTickets" class="daily-linked-tickets"></div></aside>
