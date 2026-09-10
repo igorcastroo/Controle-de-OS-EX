@@ -277,6 +277,10 @@ main {
   font-size: 17px;
 }
 
+.daily-linked-panel {
+  align-content: start;
+}
+
 .daily-periods button.active {
   border-color: var(--accent);
   background: var(--accent);
@@ -395,7 +399,10 @@ main {
 }
 .daily-linked-ticket {
   min-height: 28px;
-  font-size: 12px;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
   padding: 0 8px;
 }
 

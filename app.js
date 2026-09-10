@@ -33,6 +33,7 @@ const STATUSES = [
 ];
 
 const DAILY_MEMO_FORMATS = {
+  simples: "",
   atendimento: "Ação:  | Resultado:  | Próximo passo: ",
   call: "[CALL] Contato:  | Combinado:  | Retorno: ",
   teste: "[TESTE] Cenário:  | Resultado:  | Pendência: ",
@@ -154,7 +155,7 @@ document.querySelectorAll(".icon-button[data-close]").forEach((button) => {
 });
 
 newButtons.forEach((button) => {
-  button.addEventListener("click", () => openTicketDialog());
+  button.addEventListener("click", openNewTicket);
 });
 document.querySelector("#searchInput").addEventListener("input", (event) => {
   state.search = event.target.value.trim().toLowerCase();
@@ -498,6 +499,7 @@ function render() {
   archiveRangeButton.disabled = isArchivedView || !state.user;
   newButtons.forEach((button) => {
     button.disabled = isArchivedView || !state.user;
+    button.classList.toggle("primary", !isDailyView);
   });
   viewLabel.textContent = isArchivedView
     ? "Mostrando OS arquivadas. Abra uma OS para restaurar."
@@ -536,6 +538,14 @@ function toggleDailyView() {
   if (!hasDailyView) return;
   state.view = state.view === "daily" ? "active" : "daily";
   render();
+}
+
+function openNewTicket() {
+  if (state.view === "daily") {
+    state.view = "active";
+    render();
+  }
+  openTicketDialog();
 }
 
 function changeDailyDate(dayOffset) {
@@ -725,13 +735,16 @@ function linkTicketToDailyMemo() {
   const ticket = state.tickets.find((item) => item.id === ticketId);
   if (!state.dailyMemoTicketIds.includes(ticketId)) state.dailyMemoTicketIds.push(ticketId);
   if (ticket) {
-    const prefix = [ticket.number, ticket.company, ticket.companyCode]
+    const fields = dailyFormatInput.value === "simples"
+      ? [ticket.number, ticket.companyCode, ticket.company]
+      : [ticket.number, ticket.company, ticket.companyCode];
+    const prefix = fields
       .map((value) => String(value || "").trim())
       .filter(Boolean)
       .join(" - ");
     if (prefix) {
       const needsLineBreak = dailyTextInput.value && !dailyTextInput.value.endsWith("\n");
-      const format = DAILY_MEMO_FORMATS[dailyFormatInput.value] || DAILY_MEMO_FORMATS.atendimento;
+      const format = DAILY_MEMO_FORMATS[dailyFormatInput.value] ?? DAILY_MEMO_FORMATS.atendimento;
       dailyTextInput.value += `${needsLineBreak ? "\n" : ""}${prefix} - ${format}`;
     }
   }
@@ -920,6 +933,7 @@ function saveTicket(event) {
   event.preventDefault();
   const id = document.querySelector("#ticketId").value || crypto.randomUUID();
   const previous = id ? state.tickets.find((item) => item.id === id) : null;
+  const numberInput = document.querySelector("#numberInput");
   const selectedStatus = document.querySelector("#statusInput").value;
   const statusDateInput = document.querySelector("#statusUpdatedAtInput").value;
   const statusChanged = previous && previous.status !== selectedStatus;
@@ -930,7 +944,7 @@ function saveTicket(event) {
     COMPANY_CODES,
   );
   const data = {
-    number: document.querySelector("#numberInput").value.trim(),
+    number: numberInput.value.trim(),
     companyCode: companyDetails.code,
     company: companyDetails.name,
     title: document.querySelector("#titleInput").value.trim(),
@@ -946,6 +960,14 @@ function saveTicket(event) {
       : fromDateTimeInputValue(statusDateInput) || previous?.statusUpdatedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+
+  const duplicateTicket = !previous && data.number
+    ? state.tickets.find((item) => String(item.number || "").trim().toLocaleLowerCase("pt-BR") === data.number.toLocaleLowerCase("pt-BR"))
+    : null;
+  if (duplicateTicket && !confirm(`A OS ${data.number} já existe. Deseja adicionar outra OS com este mesmo número?`)) {
+    numberInput.focus();
+    return;
+  }
 
   // O dialogo gera o ID antes da OS ser salva para permitir que notas do
   // Diario sejam vinculadas a ela. Portanto, a existencia do ID nao indica
