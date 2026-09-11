@@ -182,6 +182,7 @@ main {
 
 .archive-controls button,
 #headerNewButton,
+#fixedNotesViewButton,
 #dailyViewButton {
   min-height: 44px;
   white-space: nowrap;
@@ -213,7 +214,8 @@ main {
   border: 0;
 }
 
-#dailyViewButton.active {
+#dailyViewButton.active,
+#fixedNotesViewButton.active {
   border-color: var(--accent);
   background: var(--accent);
   color: #ffffff;
@@ -224,8 +226,18 @@ main {
   gap: 16px;
 }
 
-.daily-view[hidden] {
+.daily-view[hidden],
+.fixed-notes-view[hidden] {
   display: none;
+}
+
+.fixed-notes-view {
+  display: grid;
+}
+
+.fixed-notes-panel textarea {
+  min-height: min(60vh, 560px);
+  resize: vertical;
 }
 
 .daily-toolbar,

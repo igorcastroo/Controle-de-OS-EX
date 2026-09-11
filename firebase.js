@@ -61,3 +61,11 @@ export function observarDiario(userId, aoAtualizar, aoDarErro) {
 export function salvarRegistroDiario(userId, entry) {
   return setDoc(doc(firestore, "users", userId, "dailyEntries", entry.id), entry);
 }
+
+export function observarNotasFixas(userId, aoAtualizar, aoDarErro) {
+  return onSnapshot(doc(firestore, "users", userId, "fixedNotes", "main"), aoAtualizar, aoDarErro);
+}
+
+export function salvarNotasFixas(userId, note) {
+  return setDoc(doc(firestore, "users", userId, "fixedNotes", "main"), note);
+}

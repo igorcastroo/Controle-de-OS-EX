@@ -3,9 +3,11 @@ import {
   excluirOS,
   observarAutenticacao,
   observarDiario,
+  observarNotasFixas,
   observarOS,
   sairDaConta,
   salvarRegistroDiario,
+  salvarNotasFixas,
   salvarOS,
 } from "./firebase.js";
 import {
@@ -56,6 +58,10 @@ const state = {
   dailyMemoKey: "",
   dailyMemoSaveTimers: new Map(),
   dailyMemoSaveQueues: new Map(),
+  fixedNotes: "",
+  fixedNotesDirty: false,
+  fixedNotesSaveTimer: null,
+  fixedNotesSaveQueue: Promise.resolve(),
   localTickets,
   search: "",
   draggedId: null,
@@ -67,6 +73,7 @@ const state = {
   user: null,
   unsubscribeTickets: null,
   unsubscribeDailyEntries: null,
+  unsubscribeFixedNotes: null,
 };
 
 const board = document.querySelector("#board");
@@ -82,6 +89,10 @@ const importDialog = document.querySelector("#importDialog");
 const importForm = document.querySelector("#importForm");
 const importText = document.querySelector("#importText");
 const archiveViewButton = document.querySelector("#archiveViewButton");
+const fixedNotesViewButton = document.querySelector("#fixedNotesViewButton");
+const fixedNotesView = document.querySelector("#fixedNotesView");
+const fixedNotesInput = document.querySelector("#fixedNotesInput");
+const fixedNotesStatus = document.querySelector("#fixedNotesStatus");
 const dailyViewButton = document.querySelector("#dailyViewButton");
 const dailyView = document.querySelector("#dailyView");
 const dailyDateInput = document.querySelector("#dailyDateInput");
@@ -146,6 +157,12 @@ const hasDailyView = [
   dailySummaryText,
   dailyWhatsappButton,
 ].every(Boolean);
+const hasFixedNotesView = [
+  fixedNotesViewButton,
+  fixedNotesView,
+  fixedNotesInput,
+  fixedNotesStatus,
+].every(Boolean);
 let editingNoteIndex = null;
 let whatsappPeriod = "today";
 
@@ -184,6 +201,10 @@ document.querySelectorAll("[data-whatsapp-period]").forEach((button) => {
 authButton.addEventListener("click", toggleAuthentication);
 migrateButton.addEventListener("click", migrateLocalTickets);
 archiveViewButton.addEventListener("click", toggleArchiveView);
+if (hasFixedNotesView) {
+  fixedNotesViewButton.addEventListener("click", toggleFixedNotesView);
+  fixedNotesInput.addEventListener("input", scheduleFixedNotesSave);
+}
 if (hasDailyView) {
   dailyViewButton.addEventListener("click", toggleDailyView);
   dailyDateInput.addEventListener("change", () => {
@@ -332,14 +353,21 @@ async function toggleAuthentication() {
 function handleAuthenticationState(user) {
   state.unsubscribeTickets?.();
   state.unsubscribeDailyEntries?.();
+  state.unsubscribeFixedNotes?.();
   state.unsubscribeTickets = null;
   state.unsubscribeDailyEntries = null;
+  state.unsubscribeFixedNotes = null;
   state.user = user;
   authButton.textContent = user ? "Sair" : "Entrar com Google";
 
   if (!user) {
     state.tickets = [];
     state.dailyEntries = [];
+    state.fixedNotes = "";
+    state.fixedNotesDirty = false;
+    window.clearTimeout(state.fixedNotesSaveTimer);
+    state.fixedNotesSaveTimer = null;
+    if (hasFixedNotesView) fixedNotesInput.value = "";
     migrateButton.hidden = true;
     syncStatus.textContent = "Entre com Google para acessar suas OS na nuvem.";
     render();
@@ -374,6 +402,15 @@ function handleAuthenticationState(user) {
     if (hasDailyView) renderDailyView();
   }, (error) => {
     syncStatus.textContent = `Erro ao sincronizar Diário: ${error.message}`;
+  });
+  state.unsubscribeFixedNotes = observarNotasFixas(user.uid, (snapshot) => {
+    state.fixedNotes = snapshot.exists() ? String(snapshot.data().text || "") : "";
+    if (hasFixedNotesView && !state.fixedNotesDirty) {
+      fixedNotesInput.value = state.fixedNotes;
+    }
+    renderFixedNotesView();
+  }, (error) => {
+    syncStatus.textContent = `Erro ao sincronizar Notas Fixas: ${error.message}`;
   });
 }
 
@@ -490,22 +527,33 @@ function render() {
   const tickets = filteredTickets();
   const isArchivedView = state.view === "archived";
   const isDailyView = hasDailyView && state.view === "daily";
+  const isFixedNotesView = hasFixedNotesView && state.view === "fixed-notes";
 
   archiveViewButton.textContent = isArchivedView ? "Ver ativas" : "Ver arquivadas";
   dailyViewButton?.classList.toggle("active", isDailyView);
   dailyViewButton?.setAttribute("aria-pressed", String(isDailyView));
-  board.hidden = isDailyView;
+  fixedNotesViewButton?.classList.toggle("active", isFixedNotesView);
+  fixedNotesViewButton?.setAttribute("aria-pressed", String(isFixedNotesView));
+  board.hidden = isDailyView || isFixedNotesView;
   if (dailyView) dailyView.hidden = !isDailyView;
+  if (fixedNotesView) fixedNotesView.hidden = !isFixedNotesView;
   archiveRangeButton.disabled = isArchivedView || !state.user;
   newButtons.forEach((button) => {
     button.disabled = isArchivedView || !state.user;
-    button.classList.toggle("primary", !isDailyView);
+    button.classList.toggle("primary", !isDailyView && !isFixedNotesView);
   });
   viewLabel.textContent = isArchivedView
     ? "Mostrando OS arquivadas. Abra uma OS para restaurar."
     : isDailyView
       ? "Registre atividades do dia sem alterar o histórico técnico das OS."
+      : isFixedNotesView
+        ? "Mantenha informações importantes sempre disponíveis."
       : "";
+
+  if (isFixedNotesView) {
+    renderFixedNotesView();
+    return;
+  }
 
   if (isDailyView) {
     renderDailyView();
@@ -540,12 +588,66 @@ function toggleDailyView() {
   render();
 }
 
+function toggleFixedNotesView() {
+  if (!hasFixedNotesView) return;
+  state.view = state.view === "fixed-notes" ? "active" : "fixed-notes";
+  render();
+}
+
 function openNewTicket() {
-  if (state.view === "daily") {
+  if (state.view !== "active") {
     state.view = "active";
     render();
   }
   openTicketDialog();
+}
+
+function renderFixedNotesView() {
+  if (!hasFixedNotesView) return;
+  const enabled = Boolean(state.user);
+  fixedNotesInput.disabled = !enabled;
+  fixedNotesInput.placeholder = enabled
+    ? "Escreva aqui as informações que precisam ficar sempre à mão..."
+    : "Entre com Google para editar as notas fixas";
+  if (!enabled) {
+    fixedNotesStatus.textContent = "Entre com Google para salvar";
+  } else if (!state.fixedNotesDirty) {
+    fixedNotesStatus.textContent = "Salva automaticamente";
+  }
+  if (!state.fixedNotesDirty) fixedNotesInput.value = state.fixedNotes;
+}
+
+function scheduleFixedNotesSave() {
+  if (!state.user) return;
+  const text = fixedNotesInput.value;
+  state.fixedNotesDirty = true;
+  window.clearTimeout(state.fixedNotesSaveTimer);
+  fixedNotesStatus.textContent = "Salvando...";
+  state.fixedNotesSaveTimer = window.setTimeout(() => {
+    state.fixedNotesSaveTimer = null;
+    state.fixedNotesSaveQueue = state.fixedNotesSaveQueue
+      .catch(() => undefined)
+      .then(() => saveFixedNotes(text));
+  }, 700);
+}
+
+async function saveFixedNotes(text) {
+  if (!state.user) return;
+  const note = {
+    text,
+    updatedAt: new Date().toISOString(),
+  };
+  try {
+    await salvarNotasFixas(state.user.uid, note);
+    state.fixedNotes = text;
+    if (fixedNotesInput.value === text) {
+      state.fixedNotesDirty = false;
+      fixedNotesStatus.textContent = "Salvo automaticamente";
+    }
+  } catch (error) {
+    fixedNotesStatus.textContent = "Erro ao salvar";
+    syncStatus.textContent = `Erro ao salvar Notas Fixas: ${error.message}`;
+  }
 }
 
 function changeDailyDate(dayOffset) {
