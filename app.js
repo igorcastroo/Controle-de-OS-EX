@@ -598,6 +598,7 @@ function openNewTicket() {
   if (state.view !== "active") {
     state.view = "active";
     render();
+    return;
   }
   openTicketDialog();
 }
