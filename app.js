@@ -1331,7 +1331,7 @@ function archiveSelectedRange() {
 }
 
 function exportText() {
-  const content = `CONTROLE-OS-TXT-V1\n${JSON.stringify({ tickets: state.tickets, dailyEntries: state.dailyEntries }, null, 2)}`;
+  const content = `CONTROLE-OS-TXT-V1\n${JSON.stringify({ tickets: filteredTickets(), dailyEntries: state.dailyEntries }, null, 2)}`;
 
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const link = document.createElement("a");
