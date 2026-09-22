@@ -249,38 +249,8 @@ function updateDateFrom(event) {
 }
 
 function updateDateTo(event) {
-  state.dateTo = parseEndDate(event.target.value)?.value || "";
+  state.dateTo = event.target.value;
   render();
-}
-
-function parseEndDate(value) {
-  const match = value.trim().match(/^(?:(\d{2})\/(\d{2})\/(\d{4})|(\d{4})-(\d{2})-(\d{2}))$/);
-  if (!match) return null;
-
-  const [, localDay, localMonth, localYear, isoYear, isoMonth, isoDay] = match;
-  const day = Number(localDay || isoDay);
-  const month = Number(localMonth || isoMonth);
-  const year = Number(localYear || isoYear);
-  if (month < 1 || month > 12 || day < 1) return null;
-
-  const lastDay = new Date(year, month, 0).getDate();
-  const adjustedDay = Math.min(day, lastDay);
-  const normalizedValue = `${year}-${String(month).padStart(2, "0")}-${String(adjustedDay).padStart(2, "0")}`;
-
-  return {
-    value: normalizedValue,
-    displayValue: `${String(adjustedDay).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`,
-    adjusted: adjustedDay !== day,
-  };
-}
-
-function normalizeEndDate() {
-  const parsed = parseEndDate(dateToInput.value);
-  if (!parsed) return null;
-
-  dateToInput.value = parsed.displayValue;
-  state.dateTo = parsed.value;
-  return parsed;
 }
 
 // Alguns navegadores só confirmam a digitação em campos type="date" no
@@ -288,14 +258,11 @@ function normalizeEndDate() {
 dateFromInput.addEventListener("input", updateDateFrom);
 dateFromInput.addEventListener("change", updateDateFrom);
 dateToInput.addEventListener("input", updateDateTo);
-dateToInput.addEventListener("change", () => {
-  normalizeEndDate();
-  render();
-});
+dateToInput.addEventListener("change", updateDateTo);
 todayFilterButton.addEventListener("click", () => {
   const today = toDateInputValue(new Date());
   dateFromInput.value = today;
-  dateToInput.value = formatDate(`${today}T12:00:00`);
+  dateToInput.value = today;
   state.dateFrom = today;
   state.dateTo = today;
   render();
@@ -584,7 +551,11 @@ function render() {
 
 function toggleDailyView() {
   if (!hasDailyView) return;
-  state.view = state.view === "daily" ? "active" : "daily";
+  const openingDailyView = state.view !== "daily";
+  state.view = openingDailyView ? "daily" : "active";
+  if (openingDailyView) {
+    state.dailyPeriod = new Date().getHours() < 12 ? "morning" : "afternoon";
+  }
   render();
 }
 
@@ -1625,8 +1596,7 @@ function getSelectedDateRange() {
   // Leia os campos diretamente: ao clicar em "Arquivar resolvidas" a data
   // digitada precisa valer mesmo se o navegador ainda não disparou "input".
   const dateFrom = dateFromInput.value || state.dateFrom;
-  const endDate = normalizeEndDate();
-  const dateTo = endDate?.value || (dateToInput.value.trim() ? "" : state.dateTo);
+  const dateTo = dateToInput.value || state.dateTo;
 
   return {
     start: dateFrom ? new Date(`${dateFrom}T00:00:00`) : null,
