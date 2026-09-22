@@ -69,3 +69,11 @@ export function observarNotasFixas(userId, aoAtualizar, aoDarErro) {
 export function salvarNotasFixas(userId, note) {
   return setDoc(doc(firestore, "users", userId, "fixedNotes", "main"), note);
 }
+
+export function observarConfiguracaoFluxo(userId, aoAtualizar, aoDarErro) {
+  return onSnapshot(doc(firestore, "users", userId, "settings", "workflow"), aoAtualizar, aoDarErro);
+}
+
+export function salvarConfiguracaoFluxo(userId, configuration) {
+  return setDoc(doc(firestore, "users", userId, "settings", "workflow"), configuration);
+}

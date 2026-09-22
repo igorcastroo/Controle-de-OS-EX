@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260911-1">
+    <link rel="stylesheet" href="styles.css?v=20260922-3">
   </head>
   <body>
     <header class="topbar">
@@ -23,6 +23,7 @@
       <div class="actions">
         <button class="icon-button" id="themeButton" type="button" title="Alternar tema" aria-label="Alternar tema">◐</button>
         <button id="headerNewButton" class="primary" type="button">Adicionar OS</button>
+        <button id="statusSettingsButton" type="button">Colunas</button>
         <button id="fixedNotesViewButton" type="button">Notas Fixas</button>
         <button id="dailyViewButton" type="button">Diário</button>
         <button id="archiveViewButton" type="button">Ver arquivadas</button>
@@ -243,6 +244,26 @@
       </form>
     </dialog>
 
+    <dialog id="statusSettingsDialog">
+      <form method="dialog" class="dialog-form wide" id="statusSettingsForm">
+        <div class="dialog-head">
+          <div>
+            <h2>Configurar colunas</h2>
+            <p class="status-settings-help">Altere nomes, cores e ordem sem modificar os cards existentes.</p>
+          </div>
+          <button class="icon-button" data-close="statusSettingsDialog" type="button" aria-label="Fechar">&times;</button>
+        </div>
+        <div id="statusSettingsList" class="status-settings-list"></div>
+        <button id="addStatusButton" class="status-add-button" type="button">Adicionar coluna</button>
+        <p class="status-settings-note">Para proteger suas OS, a exclusao de colunas nao esta disponivel nesta versao.</p>
+        <div class="dialog-actions single">
+          <span></span>
+          <button data-close="statusSettingsDialog" type="button">Cancelar</button>
+          <button id="saveStatusSettingsButton" class="primary" type="submit">Salvar colunas</button>
+        </div>
+      </form>
+    </dialog>
+
     <template id="columnTemplate">
       <article class="column">
         <div class="column-head">
@@ -251,6 +272,20 @@
         </div>
         <div class="dropzone"></div>
       </article>
+    </template>
+
+    <template id="statusSettingsRowTemplate">
+      <div class="status-settings-row">
+        <input class="status-color-input" type="color" aria-label="Cor da coluna">
+        <label>
+          <span class="sr-only">Nome da coluna</span>
+          <input class="status-label-input" type="text" maxlength="40" required>
+        </label>
+        <div class="status-order-actions" aria-label="Alterar ordem da coluna">
+          <button class="status-move-up" type="button" title="Mover para a esquerda" aria-label="Mover para a esquerda">&larr;</button>
+          <button class="status-move-down" type="button" title="Mover para a direita" aria-label="Mover para a direita">&rarr;</button>
+        </div>
+      </div>
     </template>
 
     <template id="ticketTemplate">
@@ -266,6 +301,6 @@
       </article>
     </template>
 
-    <script type="module" src="app.js?v=20260922-2"></script>
+    <script type="module" src="app.js?v=20260922-3"></script>
   </body>
 </html>

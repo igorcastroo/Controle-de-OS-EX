@@ -182,6 +182,7 @@ main {
 
 .archive-controls button,
 #headerNewButton,
+#statusSettingsButton,
 #fixedNotesViewButton,
 #dailyViewButton {
   min-height: 44px;
@@ -682,6 +683,60 @@ dialog::backdrop {
   width: min(900px, calc(100vw - 28px));
 }
 
+#statusSettingsDialog {
+  width: min(720px, calc(100vw - 28px));
+}
+
+.status-settings-help,
+.status-settings-note {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.status-settings-list {
+  display: grid;
+  gap: 9px;
+}
+
+.status-settings-row {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-soft);
+  padding: 9px;
+}
+
+.status-settings-row label {
+  min-width: 0;
+}
+
+.status-color-input {
+  width: 46px;
+  min-height: 40px;
+  padding: 3px;
+  cursor: pointer;
+}
+
+.status-order-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.status-order-actions button {
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0 9px;
+}
+
+.status-add-button {
+  justify-self: start;
+}
+
 .whatsapp-dialog {
   gap: 18px;
   padding: 24px;
@@ -934,12 +989,21 @@ dialog::backdrop {
   .board,
   .form-grid,
   .note-add,
+  .status-settings-row,
   .status-options,
   .whatsapp-custom-dates,
   .whatsapp-periods,
   .daily-layout,
   .daily-entry-form {
     grid-template-columns: 1fr;
+  }
+
+  .status-color-input {
+    width: 100%;
+  }
+
+  .status-order-actions button {
+    flex: 1;
   }
 
   .daily-memo-controls {

@@ -2,6 +2,7 @@ import {
   entrarComGoogle,
   excluirOS,
   observarAutenticacao,
+  observarConfiguracaoFluxo,
   observarDiario,
   observarNotasFixas,
   observarOS,
@@ -9,6 +10,7 @@ import {
   salvarRegistroDiario,
   salvarNotasFixas,
   salvarOS,
+  salvarConfiguracaoFluxo,
 } from "./firebase.js";
 import {
   createTicket,
@@ -24,15 +26,14 @@ import {
   normalizeDailyEntry,
 } from "./js/daily.js";
 import { loadTickets, saveTickets } from "./js/storage.js";
+import {
+  cloneDefaultStatuses,
+  createStatusDefinition,
+  includeTicketStatuses,
+  normalizeStatuses,
+} from "./js/statuses.js";
 
-const STATUSES = [
-  { id: "pendente", label: "Pendentes" },
-  { id: "andamento", label: "Em Andamento" },
-  { id: "conferir", label: "Conferir" },
-  { id: "gerar-exe", label: "Gerar EXE" },
-  { id: "aguardando", label: "Aguardando" },
-  { id: "resolvido", label: "Resolvido" },
-];
+let STATUSES = cloneDefaultStatuses();
 
 const DAILY_MEMO_FORMATS = {
   simples: "",
@@ -45,6 +46,7 @@ const DAILY_MEMO_FORMATS = {
 
 const STORAGE_KEY = "controle-os-kanban-v1";
 const DAILY_STORAGE_KEY = "controle-os-daily-v1";
+const WORKFLOW_STORAGE_KEY = "controle-os-workflow-v1";
 const THEME_KEY = "controle-os-theme";
 const COMPANY_CODES = new Map([
   ["PONTO CELL CLJ ACESSORIOS ELETRONICOS E ASSISTENCIA LTDA", "95646"],
@@ -74,6 +76,8 @@ const state = {
   unsubscribeTickets: null,
   unsubscribeDailyEntries: null,
   unsubscribeFixedNotes: null,
+  unsubscribeWorkflow: null,
+  statusDraft: [],
 };
 
 const board = document.querySelector("#board");
@@ -127,6 +131,13 @@ const noteViewSaveButton = document.querySelector("#noteViewSaveButton");
 const authButton = document.querySelector("#authButton");
 const migrateButton = document.querySelector("#migrateButton");
 const syncStatus = document.querySelector("#syncStatus");
+const statusSettingsButton = document.querySelector("#statusSettingsButton");
+const statusSettingsDialog = document.querySelector("#statusSettingsDialog");
+const statusSettingsForm = document.querySelector("#statusSettingsForm");
+const statusSettingsList = document.querySelector("#statusSettingsList");
+const statusSettingsRowTemplate = document.querySelector("#statusSettingsRowTemplate");
+const addStatusButton = document.querySelector("#addStatusButton");
+const saveStatusSettingsButton = document.querySelector("#saveStatusSettingsButton");
 const whatsappButton = document.querySelector("#whatsappButton");
 const whatsappDialog = document.querySelector("#whatsappDialog");
 const whatsappForm = document.querySelector("#whatsappForm");
@@ -200,6 +211,9 @@ document.querySelectorAll("[data-whatsapp-period]").forEach((button) => {
 });
 authButton.addEventListener("click", toggleAuthentication);
 migrateButton.addEventListener("click", migrateLocalTickets);
+statusSettingsButton.addEventListener("click", openStatusSettings);
+statusSettingsForm.addEventListener("submit", saveStatusSettings);
+addStatusButton.addEventListener("click", addStatusSetting);
 archiveViewButton.addEventListener("click", toggleArchiveView);
 if (hasFixedNotesView) {
   fixedNotesViewButton.addEventListener("click", toggleFixedNotesView);
@@ -297,6 +311,7 @@ noteEntryInput.addEventListener("keydown", (event) => {
 setupTheme();
 setupStatusOptions();
 setupWhatsappStatusOptions();
+whatsappStatusOptions.addEventListener("change", updateWhatsappSelection);
 render();
 observarAutenticacao(handleAuthenticationState);
 
@@ -321,13 +336,16 @@ function handleAuthenticationState(user) {
   state.unsubscribeTickets?.();
   state.unsubscribeDailyEntries?.();
   state.unsubscribeFixedNotes?.();
+  state.unsubscribeWorkflow?.();
   state.unsubscribeTickets = null;
   state.unsubscribeDailyEntries = null;
   state.unsubscribeFixedNotes = null;
+  state.unsubscribeWorkflow = null;
   state.user = user;
   authButton.textContent = user ? "Sair" : "Entrar com Google";
 
   if (!user) {
+    applyStatuses(cloneDefaultStatuses());
     state.tickets = [];
     state.dailyEntries = [];
     state.fixedNotes = "";
@@ -342,6 +360,13 @@ function handleAuthenticationState(user) {
   }
 
   syncStatus.textContent = `Conectado como ${user.email}`;
+  applyStatuses(loadCachedStatuses(user.uid));
+  state.unsubscribeWorkflow = observarConfiguracaoFluxo(user.uid, (snapshot) => {
+    const savedStatuses = snapshot.exists() ? snapshot.data().statuses : cloneDefaultStatuses();
+    applyStatuses(savedStatuses, true);
+  }, (error) => {
+    syncStatus.textContent = `Erro ao sincronizar colunas: ${error.message}`;
+  });
   state.unsubscribeTickets = observarOS(user.uid, (snapshot) => {
     const migrations = [];
     state.tickets = snapshot.docs.map((ticketDocument) => {
@@ -427,17 +452,141 @@ async function migrateLocalTickets() {
   }
 }
 
+function workflowStorageKey(userId) {
+  return `${WORKFLOW_STORAGE_KEY}-${userId}`;
+}
+
+function loadCachedStatuses(userId) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(workflowStorageKey(userId)) || "null");
+    return normalizeStatuses(saved);
+  } catch {
+    return cloneDefaultStatuses();
+  }
+}
+
+function applyStatuses(statuses, saveCache = false) {
+  STATUSES = normalizeStatuses(statuses);
+  if (saveCache && state.user) {
+    localStorage.setItem(workflowStorageKey(state.user.uid), JSON.stringify(STATUSES));
+  }
+  setupStatusOptions();
+  setupWhatsappStatusOptions();
+  render();
+}
+
+function getAvailableStatuses() {
+  return includeTicketStatuses(STATUSES, state.tickets);
+}
+
 function setupStatusOptions() {
-  statusInput.innerHTML = STATUSES.map((status) => (
-    `<option value="${status.id}">${status.label}</option>`
-  )).join("");
+  const selectedStatus = statusInput.value;
+  const statuses = getAvailableStatuses();
+  statusInput.replaceChildren(...statuses.map((status) => {
+    const option = document.createElement("option");
+    option.value = status.id;
+    option.textContent = status.label;
+    return option;
+  }));
+  if (statuses.some((status) => status.id === selectedStatus)) statusInput.value = selectedStatus;
 }
 
 function setupWhatsappStatusOptions() {
-  whatsappStatusOptions.innerHTML = STATUSES.map((status) => (
-    `<label><input type="checkbox" name="whatsappStatus" value="${status.id}"> <span data-whatsapp-status-label="${status.id}">${status.label} (0)</span></label>`
-  )).join("");
-  whatsappStatusOptions.addEventListener("change", updateWhatsappSelection);
+  const selectedStatuses = new Set(
+    [...whatsappStatusOptions.querySelectorAll("input:checked")].map((input) => input.value),
+  );
+  const options = getAvailableStatuses().map((status) => {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    const text = document.createElement("span");
+    input.type = "checkbox";
+    input.name = "whatsappStatus";
+    input.value = status.id;
+    input.checked = selectedStatuses.has(status.id);
+    text.dataset.whatsappStatusLabel = status.id;
+    text.textContent = `${status.label} (0)`;
+    label.append(input, text);
+    return label;
+  });
+  whatsappStatusOptions.replaceChildren(...options);
+}
+
+function openStatusSettings() {
+  if (!state.user) return;
+  state.statusDraft = STATUSES.map((status) => ({ ...status }));
+  renderStatusSettings();
+  statusSettingsDialog.showModal();
+}
+
+function renderStatusSettings() {
+  const rows = state.statusDraft.map((status, index) => {
+    const row = statusSettingsRowTemplate.content.firstElementChild.cloneNode(true);
+    const colorInput = row.querySelector(".status-color-input");
+    const labelInput = row.querySelector(".status-label-input");
+    const moveUpButton = row.querySelector(".status-move-up");
+    const moveDownButton = row.querySelector(".status-move-down");
+
+    colorInput.value = status.color;
+    labelInput.value = status.label;
+    moveUpButton.disabled = index === 0;
+    moveDownButton.disabled = index === state.statusDraft.length - 1;
+
+    colorInput.addEventListener("input", () => {
+      state.statusDraft[index].color = colorInput.value;
+    });
+    labelInput.addEventListener("input", () => {
+      state.statusDraft[index].label = labelInput.value;
+    });
+    moveUpButton.addEventListener("click", () => moveStatusSetting(index, -1));
+    moveDownButton.addEventListener("click", () => moveStatusSetting(index, 1));
+    return row;
+  });
+  statusSettingsList.replaceChildren(...rows);
+}
+
+function moveStatusSetting(index, offset) {
+  const targetIndex = index + offset;
+  if (targetIndex < 0 || targetIndex >= state.statusDraft.length) return;
+  const [status] = state.statusDraft.splice(index, 1);
+  state.statusDraft.splice(targetIndex, 0, status);
+  renderStatusSettings();
+  statusSettingsList.querySelectorAll(".status-label-input")[targetIndex]?.focus();
+}
+
+function addStatusSetting() {
+  state.statusDraft.push(createStatusDefinition(state.statusDraft));
+  renderStatusSettings();
+  const inputs = statusSettingsList.querySelectorAll(".status-label-input");
+  inputs[inputs.length - 1]?.select();
+}
+
+async function saveStatusSettings(event) {
+  event.preventDefault();
+  const statuses = normalizeStatuses(state.statusDraft, []);
+  const labels = statuses.map((status) => status.label.toLocaleLowerCase("pt-BR"));
+  if (statuses.length !== state.statusDraft.length) {
+    alert("Preencha o nome de todas as colunas.");
+    return;
+  }
+  if (new Set(labels).size !== labels.length) {
+    alert("Use um nome diferente para cada coluna.");
+    return;
+  }
+
+  saveStatusSettingsButton.disabled = true;
+  try {
+    await salvarConfiguracaoFluxo(state.user.uid, {
+      statuses,
+      updatedAt: new Date().toISOString(),
+    });
+    applyStatuses(statuses, true);
+    statusSettingsDialog.close();
+    syncStatus.textContent = "Colunas salvas. Seus cards foram preservados.";
+  } catch (error) {
+    syncStatus.textContent = `Erro ao salvar colunas: ${error.message}`;
+  } finally {
+    saveStatusSettingsButton.disabled = false;
+  }
 }
 
 function openWhatsappDialog() {
@@ -505,6 +654,7 @@ function render() {
   if (dailyView) dailyView.hidden = !isDailyView;
   if (fixedNotesView) fixedNotesView.hidden = !isFixedNotesView;
   archiveRangeButton.disabled = isArchivedView || !state.user;
+  statusSettingsButton.disabled = !state.user;
   newButtons.forEach((button) => {
     button.disabled = isArchivedView || !state.user;
     button.classList.toggle("primary", !isDailyView && !isFixedNotesView);
@@ -527,7 +677,7 @@ function render() {
     return;
   }
 
-  STATUSES.forEach((status) => {
+  getAvailableStatuses().forEach((status) => {
     const column = columnTemplate.content.firstElementChild.cloneNode(true);
     const zone = column.querySelector(".dropzone");
     const columnTickets = tickets
@@ -539,6 +689,8 @@ function render() {
       });
 
     column.dataset.status = status.id;
+    column.style.setProperty("--status-color", status.color);
+    column.style.setProperty("--status-bg", `color-mix(in srgb, ${status.color} 12%, transparent)`);
     column.querySelector("h2").textContent = status.label;
     column.querySelector(".counter").textContent = columnTickets.length;
     zone.dataset.status = status.id;
@@ -1302,7 +1454,11 @@ function archiveSelectedRange() {
 }
 
 function exportText() {
-  const content = `CONTROLE-OS-TXT-V1\n${JSON.stringify({ tickets: filteredTickets(), dailyEntries: state.dailyEntries }, null, 2)}`;
+  const content = `CONTROLE-OS-TXT-V1\n${JSON.stringify({
+    tickets: filteredTickets(),
+    dailyEntries: state.dailyEntries,
+    statuses: STATUSES,
+  }, null, 2)}`;
 
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const link = document.createElement("a");
@@ -1315,11 +1471,12 @@ function exportText() {
   window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
-function importTickets(event) {
+async function importTickets(event) {
   event.preventDefault();
   const imported = parseText(importText.value);
   const importedDailyEntries = parseDailyEntriesFromBackup(importText.value);
-  if (!imported.length && !importedDailyEntries.length) {
+  const importedStatuses = parseStatusesFromBackup(importText.value);
+  if (!imported.length && !importedDailyEntries.length && !importedStatuses.length) {
     alert("Nenhuma OS ou atividade do Diário foi identificada no texto importado.");
     return;
   }
@@ -1330,10 +1487,32 @@ function importTickets(event) {
     saveTickets(DAILY_STORAGE_KEY, state.dailyEntries);
     importedDailyEntries.forEach(saveDailyEntryToFirestore);
   }
+  if (importedStatuses.length) {
+    try {
+      await salvarConfiguracaoFluxo(state.user.uid, {
+        statuses: importedStatuses,
+        updatedAt: new Date().toISOString(),
+      });
+      applyStatuses(importedStatuses, true);
+    } catch (error) {
+      syncStatus.textContent = `As OS foram importadas, mas as colunas nao foram salvas: ${error.message}`;
+    }
+  }
   saveAll();
   importText.value = "";
   importDialog.close();
   render();
+}
+
+function parseStatusesFromBackup(text) {
+  const source = String(text || "").trim();
+  if (!source.startsWith("CONTROLE-OS-TXT-V1")) return [];
+  try {
+    const data = JSON.parse(source.replace(/^CONTROLE-OS-TXT-V1\s*/, ""));
+    return normalizeStatuses(data.statuses, []);
+  } catch {
+    return [];
+  }
 }
 
 function parseDailyEntriesFromBackup(text) {
@@ -1371,6 +1550,9 @@ function parseText(text) {
     resolvido: "resolvido",
     resolvidos: "resolvido",
   };
+  getAvailableStatuses().forEach((status) => {
+    statusByTitle[status.label.trim().toLocaleLowerCase("pt-BR")] = status.id;
+  });
 
   text.split(/\r?\n/).forEach((line) => {
     const clean = line.trim();
@@ -1441,6 +1623,9 @@ function parseAttendanceDetails(text) {
     aguardando: "aguardando",
     resolvido: "resolvido",
   };
+  getAvailableStatuses().forEach((status) => {
+    statusByLabel[status.label.trim().toLocaleLowerCase("pt-BR")] = status.id;
+  });
   const number = numberMatch ? numberMatch[1] : "";
   const statusLabel = statusMatch ? statusMatch[1].trim().toLowerCase() : "";
   const createdAt = parseBrazilianDateTime(dateMatch ? dateMatch[1] : "") || inferDateFromNumber(number);
@@ -1648,10 +1833,12 @@ function updateWhatsappSelection() {
   const isCustomPeriod = whatsappPeriod === "custom";
   whatsappSingleDateField.hidden = isCustomPeriod;
   whatsappCustomDates.hidden = !isCustomPeriod;
-  const availableTickets = getWhatsappTicketsForStatuses(STATUSES.map((status) => status.id));
-  STATUSES.forEach((status) => {
+  const statuses = getAvailableStatuses();
+  const availableTickets = getWhatsappTicketsForStatuses(statuses.map((status) => status.id));
+  statuses.forEach((status) => {
     const count = availableTickets.filter((item) => item.status === status.id).length;
-    const label = whatsappStatusOptions.querySelector(`[data-whatsapp-status-label="${status.id}"]`);
+    const label = [...whatsappStatusOptions.querySelectorAll("[data-whatsapp-status-label]")]
+      .find((item) => item.dataset.whatsappStatusLabel === status.id);
     if (label) label.textContent = `${status.label} (${count})`;
   });
   const ticketCount = getWhatsappTickets().length;
@@ -1693,7 +1880,7 @@ function sendWhatsappSummary(event) {
     ? `${formatDate(`${whatsappDateFromInput.value}T12:00:00`)} a ${formatDate(`${whatsappDateToInput.value}T12:00:00`)}`
     : formatDate(`${whatsappDateInput.value}T12:00:00`);
   const periodLabel = { today: "Hoje", morning: "Manhã (até 12h)", afternoon: "Tarde/Noite", custom: "Personalizado" }[whatsappPeriod];
-  const groups = STATUSES.map((status) => ({
+  const groups = getAvailableStatuses().map((status) => ({
     ...status,
     tickets: tickets.filter((item) => item.status === status.id),
   })).filter((group) => group.tickets.length);

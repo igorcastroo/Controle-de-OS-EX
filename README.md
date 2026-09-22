@@ -23,7 +23,8 @@ Além do gerenciamento diário, a aplicação permite gerar resumos filtrados pa
 
 - Cadastro, edição, exclusão, arquivamento e restauração de OS;
 - Quadro Kanban com movimentação de cards por arrastar e soltar;
-- Seis etapas de atendimento: **Pendentes**, **Em Andamento**, **Conferir**, **Gerar EXE**, **Aguardando** e **Resolvido**;
+- Colunas configuráveis por usuário, com nome, cor e ordem personalizados;
+- Fluxo inicial com **Pendentes**, **Em Andamento**, **Conferir**, **Gerar EXE**, **Aguardando** e **Resolvido**;
 - Classificação por prioridade e identificação da empresa;
 - Histórico de observações com data de cadastro e última alteração;
 - Pesquisa por número, empresa, descrição, prioridade, data e observação;
@@ -62,6 +63,8 @@ Controle-de-OS-EX/
 ├── firestore.rules     # Regras de segurança do banco de dados
 ├── firebase.json       # Configuração de publicação
 └── js/
+    ├── daily.js        # Regras do diário de atividades
+    ├── statuses.js     # Configuração e compatibilidade das colunas
     ├── storage.js      # Persistência local
     └── tickets.js      # Criação e normalização das OS
 ```
@@ -69,9 +72,10 @@ Controle-de-OS-EX/
 ### Fluxo de dados
 
 1. O usuário entra com uma conta Google.
-2. As OS do usuário autenticado são carregadas do Firestore em tempo real.
+2. As OS e a configuração de colunas do usuário autenticado são carregadas do Firestore em tempo real.
 3. Alterações feitas no Kanban são persistidas localmente e sincronizadas com a nuvem.
-4. As regras do Firestore garantem que cada usuário acesse somente os próprios registros.
+4. Nome, cor e ordem das colunas são salvos sem alterar o status interno das OS existentes.
+5. As regras do Firestore garantem que cada usuário acesse somente os próprios registros.
 
 ## Como executar localmente
 
