@@ -1220,6 +1220,7 @@ function addTimestampedNote() {
     : entry;
   noteEntryInput.value = "";
   renderDialogNotes();
+  persistDialogNotes();
   noteEntryInput.focus();
 
   if (confirm("Deseja adicionar esta observacao ao Diario?")) {
@@ -1358,7 +1359,13 @@ function saveViewedNote() {
 
   noteInput.value = entries.join("\n");
   renderDialogNotes();
+  persistDialogNotes();
 
+  noteViewDialog.close();
+  editingNoteIndex = null;
+}
+
+function persistDialogNotes() {
   const ticketId = document.querySelector("#ticketId").value;
   const ticketIndex = state.tickets.findIndex((item) => item.id === ticketId);
   if (ticketIndex !== -1) {
@@ -1367,12 +1374,10 @@ function saveViewedNote() {
       note: noteInput.value.trim(),
       updatedAt: new Date().toISOString(),
     };
-    saveAll();
+    saveTickets(STORAGE_KEY, state.tickets);
+    void saveTicketToFirestore(state.tickets[ticketIndex]);
     render();
   }
-
-  noteViewDialog.close();
-  editingNoteIndex = null;
 }
 
 function removeNoteAt(index) {
