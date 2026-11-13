@@ -15,3 +15,10 @@ firebase-debug.log
 *.zip
 *.rar
 *.7z
+
+# Dependências e resultados de testes locais
+node_modules/
+.npm-cache/
+test-results/
+playwright-report/
+coverage/

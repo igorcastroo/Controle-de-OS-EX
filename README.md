@@ -58,16 +58,32 @@ O projeto utiliza JavaScript modular no navegador, sem framework de interface ou
 Controle-de-OS-EX/
 ├── index.html          # Estrutura da interface
 ├── styles.css          # Estilos, temas e responsividade
-├── app.js              # Estado, eventos e fluxos da aplicação
-├── firebase.js         # Autenticação e acesso ao Firestore
+├── app.js              # Inicialização e conexão entre funcionalidades
 ├── firestore.rules     # Regras de segurança do banco de dados
 ├── firebase.json       # Configuração de publicação
-└── js/
-    ├── daily.js        # Regras do diário de atividades
-    ├── statuses.js     # Configuração e compatibilidade das colunas
-    ├── storage.js      # Persistência local
-    └── tickets.js      # Criação e normalização das OS
+├── js/
+│   ├── config.js       # Constantes e chaves de armazenamento
+│   ├── state.js        # Criação do estado compartilhado
+│   ├── elements.js     # Referências aos elementos da interface
+│   ├── events.js       # Associação dos eventos às ações
+│   ├── firebase.js     # Autenticação e acesso ao Firestore
+│   ├── storage.js      # Persistência local
+│   ├── domain/         # Regras de OS, diário, colunas, notas e leitores TXT
+│   ├── features/       # Fluxos de cada funcionalidade e renderização
+│   └── utils/dates.js  # Conversão e formatação de datas
+├── tests/
+│   ├── *.test.js       # Testes de regras, persistência e funcionalidades
+│   ├── browser/        # Cenários completos no navegador
+│   └── fixtures/       # Firebase simulado para testes
+└── package.json        # Comandos de teste e análise estática
 ```
+
+As funções em `domain/` tratam dados sem depender da interface ou do Firebase.
+Os módulos de `features/` recebem estado, elementos, serviços e ações por parâmetro.
+O `app.js` conecta essas ações antes de registrar os eventos e observar o login,
+evitando importações circulares. As ações ficam restritas a essa instância da aplicação.
+Para mudar um fluxo, procure seu módulo: `tickets`, `board`, `daily`, `fixed-notes`,
+`workflow`, `filters`, `backup`, `whatsapp`, `auth` ou `theme`.
 
 ### Fluxo de dados
 
@@ -94,6 +110,38 @@ npx serve .
 ```
 
 Abra o endereço informado no terminal. O projeto precisa ser servido por HTTP para que o login com Google funcione corretamente; abrir o `index.html` diretamente pelo sistema de arquivos não habilita a autenticação.
+
+## Testes
+
+Para desenvolver e executar a suíte, use Node.js 22 ou superior e instale as
+dependências de desenvolvimento:
+
+```bash
+npm ci
+npm test
+npm run lint
+npm run test:browser
+```
+
+- `npm test`: executa testes de OS, diário, colunas, notas, datas, backups,
+  filtros, arquivamento e tratamento de falhas de persistência.
+- `npm run lint`: detecta referências inexistentes, variáveis sem uso e erros
+  estruturais nos módulos e testes.
+- `npm run test:browser`: executa os fluxos da interface com Playwright, usando
+  o Microsoft Edge instalado, sem abrir uma janela. O servidor local de testes
+  é iniciado e encerrado automaticamente na porta 4173.
+- `npm run test:coverage`: mostra a cobertura dos testes executados pelo Node;
+  esse relatório não inclui os cenários do navegador.
+- `npm run check`: executa análise estática, testes de regras e testes do navegador.
+
+Os testes de navegador substituem somente o módulo Firebase por um backend em
+memória. Eles não acessam contas reais nem gravam na produção. O login Google
+real, as permissões do Firestore e a infraestrutura do Firebase precisam de
+validação própria; não são cobertos por essa simulação.
+
+Os testes usam dados fictícios. Dependências, arquivos de testes e relatórios
+ficam fora da publicação no Firebase. A aplicação continua funcionando sem
+compilação e sem dependências de produção do npm.
 
 ## Segurança e privacidade
 
