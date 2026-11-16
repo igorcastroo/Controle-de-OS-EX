@@ -56,7 +56,10 @@ export function createEventBindings({ state, elements, services, actions }) {
       state.search = event.target.value.trim().toLowerCase();
       actions.render();
     });
-    document.querySelector("#exportButton").addEventListener("click", actions.exportText);
+    document.querySelector("#exportButton").addEventListener("click", actions.openExportDialog);
+    elements.exportForm.addEventListener("submit", actions.exportText);
+    elements.exportForm.addEventListener("input", actions.updateExportSelection);
+    elements.exportForm.addEventListener("change", actions.updateExportSelection);
     document.querySelector("#importButton").addEventListener("click", () => importDialog.showModal());
     document.querySelector("#themeButton").addEventListener("click", actions.toggleTheme);
     whatsappButton.addEventListener("click", actions.openWhatsappDialog);

@@ -95,6 +95,16 @@ const hasFixedNotesView = [
 ].every(Boolean);
 
 export const elements = {
+  exportDialog: document.querySelector("#exportDialog"),
+  exportForm: document.querySelector("#exportForm"),
+  exportStatusInput: document.querySelector("#exportStatusInput"),
+  exportDateFieldInput: document.querySelector("#exportDateFieldInput"),
+  exportDateFromInput: document.querySelector("#exportDateFromInput"),
+  exportDateToInput: document.querySelector("#exportDateToInput"),
+  exportIncludeArchivedInput: document.querySelector("#exportIncludeArchivedInput"),
+  exportIncludeDailyInput: document.querySelector("#exportIncludeDailyInput"),
+  exportSelectionInfo: document.querySelector("#exportSelectionInfo"),
+  runExportButton: document.querySelector("#runExportButton"),
   board,
   columnTemplate,
   ticketTemplate,

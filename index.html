@@ -185,6 +185,41 @@
       </div>
     </dialog>
 
+    <dialog id="exportDialog" aria-labelledby="exportDialogTitle">
+      <form class="dialog-form" id="exportForm">
+        <div class="dialog-head">
+          <h2 id="exportDialogTitle">Exportar TXT</h2>
+          <button class="icon-button" data-close="exportDialog" type="button" aria-label="Fechar">&times;</button>
+        </div>
+        <p class="whatsapp-help">Exporte todos os registros ou combine os filtros abaixo. Os filtros do quadro não afetam esta seleção.</p>
+        <label>
+          <span>Status das OS</span>
+          <select id="exportStatusInput"><option value="">Todos os status</option></select>
+        </label>
+        <label>
+          <span>Filtrar datas das OS por</span>
+          <select id="exportDateFieldInput">
+            <option value="statusUpdatedAt">Última alteração do status</option>
+            <option value="createdAt">Data de cadastro</option>
+          </select>
+        </label>
+        <div class="form-grid">
+          <label><span>Data inicial</span><input id="exportDateFromInput" type="date"></label>
+          <label><span>Data final</span><input id="exportDateToInput" type="date"></label>
+        </div>
+        <p class="whatsapp-help">Deixe as datas vazias para incluir todo o período. As datas inicial e final estão incluídas.</p>
+        <label class="whatsapp-daily-option"><input id="exportIncludeArchivedInput" type="checkbox" checked> Incluir OS arquivadas</label>
+        <label class="whatsapp-daily-option"><input id="exportIncludeDailyInput" type="checkbox" checked> Incluir registros do Diário</label>
+        <p class="whatsapp-help">O Diário é filtrado pela data da atividade. O filtro de status se aplica apenas às OS.</p>
+        <p id="exportSelectionInfo" class="whatsapp-selection-info" role="status" aria-live="polite"></p>
+        <div class="dialog-actions single">
+          <span></span>
+          <button data-close="exportDialog" type="button">Cancelar</button>
+          <button id="runExportButton" class="primary" type="submit">Baixar TXT</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="importDialog">
       <form method="dialog" class="dialog-form wide" id="importForm">
         <div class="dialog-head">

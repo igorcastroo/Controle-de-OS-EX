@@ -147,6 +147,8 @@ test("exportação e importação TXT recuperam OS, diário e configuração", a
   await page.locator("#dailyViewButton").click();
   const downloadPromise = page.waitForEvent("download");
   await page.locator("#exportButton").click();
+  await expect(page.locator("#exportDialog")).toBeVisible();
+  await page.locator("#runExportButton").click();
   const download = await downloadPromise;
   const content = await readFile(await download.path(), "utf8");
   const data = JSON.parse(content.replace(/^CONTROLE-OS-TXT-V1\s*/, ""));
@@ -164,6 +166,55 @@ test("exportação e importação TXT recuperam OS, diário e configuração", a
   await page.locator("#dailyViewButton").click();
   await page.locator(`[data-daily-period="${data.dailyEntries[0].period}"]`).click();
   await expect(page.locator("#dailyTextInput")).toHaveValue("Anotação do backup");
+});
+
+test("exportação combina status, datas inclusivas, arquivo e Diário sem usar filtros do quadro", async ({ page }) => {
+  await login(page);
+  const tickets = [
+    { id: "a", status: "pendente", statusUpdatedAt: "2026-11-12T03:00:00Z" },
+    { id: "b", status: "resolvido", statusUpdatedAt: "2026-11-13T02:59:59Z" },
+    { id: "c", status: "pendente", statusUpdatedAt: "2026-11-13T03:00:00Z" },
+    { id: "d", status: "pendente", statusUpdatedAt: "2026-11-12T15:00:00Z", archivedAt: "2026-11-14T15:00:00Z" },
+  ].map((ticket) => ({ ...ticket, title: ticket.id, number: ticket.id, note: "", priority: "Normal", createdAt: "2026-11-01T15:00:00Z" }));
+  await page.locator("#importButton").click();
+  await page.locator("#importText").fill(`CONTROLE-OS-TXT-V1\n${JSON.stringify({
+    tickets,
+    dailyEntries: [
+      { id: "daily-a", date: "2026-11-12", text: "Dentro do período" },
+      { id: "daily-b", date: "2026-11-13", text: "Fora do período" },
+    ],
+  })}`);
+  await page.locator('#importForm button[type="submit"]').click();
+  await page.locator("#searchInput").fill("inexistente");
+  await page.locator("#exportButton").click();
+  await expect(page.locator("#exportSelectionInfo")).toHaveText("4 OS e 2 registro(s) do Diário para exportar.");
+  await page.screenshot({ path: "test-results/exportar-txt.png", fullPage: true });
+  await page.locator("#exportDateFromInput").fill("2026-11-12");
+  await page.locator("#exportDateToInput").fill("2026-11-12");
+  await expect(page.locator("#exportSelectionInfo")).toHaveText("3 OS e 1 registro(s) do Diário para exportar.");
+  await page.locator("#exportStatusInput").selectOption("pendente");
+  await page.locator("#exportIncludeArchivedInput").uncheck();
+  await expect(page.locator("#exportSelectionInfo")).toHaveText("1 OS e 1 registro(s) do Diário para exportar.");
+  await page.locator("#exportDateFromInput").fill("2026-11-13");
+  await expect(page.locator("#runExportButton")).toBeDisabled();
+  await page.locator("#exportDateFromInput").fill("2026-11-12");
+  await page.locator("#exportDateFieldInput").selectOption("createdAt");
+  await page.locator("#exportIncludeDailyInput").uncheck();
+  await expect(page.locator("#runExportButton")).toBeDisabled();
+  await page.locator("#exportDateFieldInput").selectOption("statusUpdatedAt");
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#runExportButton").click();
+  const download = await downloadPromise;
+  const content = await readFile(await download.path(), "utf8");
+  const data = JSON.parse(content.replace(/^CONTROLE-OS-TXT-V1\s*/, ""));
+  expect(data.tickets.map((ticket) => ticket.id)).toEqual(["a"]);
+  expect(data.dailyEntries).toEqual([]);
+  await page.locator("#exportButton").click();
+  await expect(page.locator("#exportStatusInput")).toHaveValue("");
+  await expect(page.locator("#exportDateFromInput")).toHaveValue("");
+  await expect(page.locator("#exportSelectionInfo")).toHaveText("4 OS e 2 registro(s) do Diário para exportar.");
+  await page.locator('[data-close="exportDialog"]').last().click();
+  await expect(page.locator("#exportDialog")).not.toBeVisible();
 });
 
 test("WhatsApp seleciona período e gera mensagem com OBS", async ({ page }) => {

@@ -1,16 +1,55 @@
 import { DAILY_STORAGE_KEY } from "../config.js";
 import { saveTickets } from "../storage.js";
 import { parseStatusesFromBackup, parseDailyEntriesFromBackup, parseText, serializeBackup } from "../domain/backup.js";
+import { toDateInputValue } from "../utils/dates.js";
 
 export function createBackupFeature({ state, elements, services, actions }) {
   const { importDialog, importText, syncStatus } = elements;
 
   const { salvarConfiguracaoFluxo } = services;
 
-  function exportText() {
+  function openExportDialog() {
+    elements.exportForm.reset();
+    elements.exportStatusInput.replaceChildren(new window.Option("Todos os status", ""), ...actions.getAvailableStatuses().map(
+      (status) => new window.Option(status.label, status.id),
+    ));
+    updateExportSelection();
+    elements.exportDialog.showModal();
+  }
+
+  function getExportSelection() {
+    const from = elements.exportDateFromInput.value;
+    const to = elements.exportDateToInput.value;
+    const matchesDate = (date) => (!from && !to) || Boolean(date && (!from || date >= from) && (!to || date <= to));
+    const tickets = state.tickets.filter((ticket) => {
+      if (!elements.exportIncludeArchivedInput.checked && ticket.archivedAt) return false;
+      if (elements.exportStatusInput.value && ticket.status !== elements.exportStatusInput.value) return false;
+      const date = elements.exportDateFieldInput.value === "createdAt" ? ticket.createdAt : ticket.statusUpdatedAt || ticket.createdAt;
+      return matchesDate(toDateInputValue(date));
+    });
+    const dailyEntries = elements.exportIncludeDailyInput.checked
+      ? state.dailyEntries.filter((entry) => matchesDate(entry.date || toDateInputValue(entry.createdAt)))
+      : [];
+    return { tickets, dailyEntries };
+  }
+
+  function updateExportSelection() {
+    const invalid = elements.exportDateFromInput.value && elements.exportDateToInput.value
+      && elements.exportDateFromInput.value > elements.exportDateToInput.value;
+    elements.exportDateToInput.setCustomValidity(invalid ? "A data final deve ser igual ou posterior à data inicial." : "");
+    const { tickets, dailyEntries } = getExportSelection();
+    elements.exportSelectionInfo.textContent = invalid
+      ? "A data final deve ser igual ou posterior à data inicial."
+      : `${tickets.length} OS e ${dailyEntries.length} registro(s) do Diário para exportar.`;
+    elements.runExportButton.disabled = Boolean(invalid) || (!tickets.length && !dailyEntries.length);
+  }
+
+  function exportText(event) {
+    event.preventDefault();
+    updateExportSelection();
+    if (!elements.exportForm.reportValidity() || elements.runExportButton.disabled) return;
     const content = serializeBackup({
-      tickets: actions.filteredTickets(),
-      dailyEntries: state.dailyEntries,
+      ...getExportSelection(),
       statuses: state.statuses,
     });
 
@@ -23,6 +62,7 @@ export function createBackupFeature({ state, elements, services, actions }) {
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    elements.exportDialog.close();
   }
 
   async function importTickets(event) {
@@ -58,5 +98,5 @@ export function createBackupFeature({ state, elements, services, actions }) {
     actions.render();
   }
 
-  return { exportText, importTickets };
+  return { openExportDialog, getExportSelection, updateExportSelection, exportText, importTickets };
 }
